@@ -107,7 +107,7 @@ Simu.Parser._ParsearCuerpo = function() {
   datos.códigoLimpio.push(datos.líneas[datos.i].substring(0,finLínea));
   let restoLínea = datos.líneas[datos.i].substring(finLínea);
   datos.i++;
-  datos.líneas.Insertar_EnPosicion_(restoLínea, datos.i);
+  datos.líneas.Insertar_EnPosicion_(restoLínea, datos.i+1);
 };
 
 Simu.Parser.limpiarCódigoCuerpo = function() {
