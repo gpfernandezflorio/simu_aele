@@ -45,24 +45,15 @@ Simu.Diseño.setupPlaca = {
   // A4:{modo:"ENTRADA", rango:"A1024"}
 };
 
-Simu.Diseño.DibujarPines = function() {
-  
-  /*PANEL*/ for (let e of Simu.Diseño.panel._elementos) {e.QuitarDelHtml();}
-
-  
+Simu.Diseño.DibujarPines = function() {  
   const pines = [];
-  for (let pin in Simu.mostrarPinesDesconectados.marcado()
+  for (let pin in Simu.mostrarPinesDesconectados.marcada()
     ? Simu.Diseño.placaActual.pines
     : Simu.Diseño.setupPlaca
   ) {
     pines.push(Simu.Diseño.panelParaPin_(pin));
   }
   Simu.Diseño.panel.CambiarElementosA_(pines);
-
-
-  /*PANEL*/
-    for (let e of Simu.Diseño.panel._elementos) {e.PlasmarEnHtml(Simu.Diseño.panel._nodoHtml);}
-    Mila.Pantalla._Redimensionar();
 };
 
 Simu.Diseño.panelParaPin_ = function(pin) {
