@@ -4,3 +4,9 @@
 [submodule "build/milascript"]
 	path = build/milascript
 	url = https://github.com/milapulgames/milascript.git
+[submodule "src/pequescript"]
+	path = src/pequescript
+	url = git@github.com:gpfernandezflorio/pequescript.git
+[submodule "build/pequescript"]
+	path = build/pequescript
+	url = https://github.com/gpfernandezflorio/pequescript.git

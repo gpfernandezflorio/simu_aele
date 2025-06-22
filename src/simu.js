@@ -39,11 +39,11 @@ Simu.IniciarSinCódigo = function() {
 // }";
 
   Simu.textoInicial = "\
-# Proyecto Blink {\n\
-  Encender led (12)\n\
-  Esperar (1000)\n\
-  Apagar led (12)\n\
-  Esperar (1000)\n\
+Proyecto Blink {\n\
+  Encender led 12\n\
+  Esperar 1 s\n\
+  Apagar led 12\n\
+  Esperar 1 s\n\
 }";
   Simu.IniciarConCódigo(Simu.textoInicial);
 };
@@ -67,7 +67,9 @@ Simu.IniciarConCódigo = function(código) {
     elementos:Simu.botonesDetenido(),alto:"Minimizar"
   });
 
-  Simu.mostrarPinesDesconectados = Mila.Pantalla.nuevaCasillaVerificacion();
+  Simu.mostrarPinesDesconectados = Mila.Pantalla.nuevaCasillaVerificacion({
+    funcion:Simu.Diseño.DibujarPines
+  });
   Simu.menuSuperior = Mila.Pantalla.nuevoPanel({disposicion:"Horizontal",alto:"Minimizar",elementos:[
     Simu.botoneraEjecución,
     Mila.Pantalla.nuevaEtiqueta({texto:"Mostrar pines desconectados"}),
@@ -82,7 +84,7 @@ Simu.IniciarConCódigo = function(código) {
 
 Simu.Ejecutar = function() {
   let código = Simu.areaTexto.texto();
-  código = Simu.Parser.limpiarCódigo(código);
+  código = Simu.Parser.Parsear(código);
   if (código.esNada()) {
     return;
   }
