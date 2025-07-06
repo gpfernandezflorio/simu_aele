@@ -10,4 +10,7 @@ Mila.Archivo.AbrirArchivo_YLuego_("src/simu.js", function(resultado) {
   Mila.Archivo.Escribir_EnElArchivo_(resultado.contenido, "build/index.js");
   Mostrar("cd build");
   Mostrar("mila milascript/scripts/build index");
+  Mostrar("* Reemplazar en build/index.html:");
+  Mostrar("   - 'index.js' por '../src/simu.js'");
+  Mostrar("   - '../src/pequescript' por 'pequescript'");
 });

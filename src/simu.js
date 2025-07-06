@@ -8,7 +8,9 @@ Mila.Modulo({
 });
 
 Simu.ajustes = {
-  mostrarCódigo:true
+  modoCódigo:"EDITAR", // VER, EDITAR, NO
+  modoVer:"PINES", // PINES, MODULOS
+  placa:"UNO" // UNO MEGA NANO ...
 };
 
 Mila.alIniciar(function() {
@@ -16,7 +18,7 @@ Mila.alIniciar(function() {
   if (códigoRecibido.esNada()) {
     Simu.IniciarSinCódigo();
   } else {
-    Simu.ajustes.mostrarCódigo = false;
+    Simu.ajustes.modoCódigo = "NO";
     Simu.IniciarConCódigo(códigoRecibido);
   }
 });
@@ -49,12 +51,31 @@ Proyecto Blink {\n\
 };
 
 Simu.IniciarConCódigo = function(código) {
-  Simu.areaTexto = Mila.Pantalla.nuevaAreaTexto({texto:código});
+  // Ajustes
+  let modoCódigo = Mila.Navegador.argumentoUrl('modoCodigo');
+  if (modoCódigo.esAlgo()) {
+    Simu.ajustes.modoCódigo = modoCódigo;
+  }
+  let modoVer = Mila.Navegador.argumentoUrl('modoVer');
+  if (modoVer.esAlgo()) {
+    Simu.ajustes.modoVer = modoVer;
+  }
+  let placa = Mila.Navegador.argumentoUrl('placa');
+  if (placa.esAlgo()) {
+    Simu.ajustes.placa = placa;
+  }
+  let setupPlaca = Mila.Navegador.argumentoUrl('setup');
+  if (setupPlaca.esAlgo()) {
+    setupPlaca = JSON.parse(setupPlaca);
+  }
+
+  // Crear UI
+  Simu.areaTexto = Mila.Pantalla.nuevaAreaTexto({texto:código, editable:(Simu.ajustes.modoCódigo == "EDITAR")});
   let elementosEscritorio = [];
-  if (Simu.ajustes.mostrarCódigo) {
+  if (["VER","EDITAR"].includes(Simu.ajustes.modoCódigo)) {
     elementosEscritorio.push(Mila.Pantalla.nuevoPanel({elementos:[Simu.areaTexto],ancho:300}));
   }
-  Simu.panelDiseño = Simu.Diseño.inicializar();
+  Simu.panelDiseño = Simu.Diseño.Inicializar(Simu.ajustes.modoVer, Simu.ajustes.placa, setupPlaca);
   elementosEscritorio.push(Simu.panelDiseño);
   Simu.escritorio = Mila.Pantalla.nuevoPanel({elementos:elementosEscritorio, disposicion: "Horizontal"});
 
@@ -67,19 +88,24 @@ Simu.IniciarConCódigo = function(código) {
     elementos:Simu.botonesDetenido(),alto:"Minimizar"
   });
 
-  Simu.mostrarPinesDesconectados = Mila.Pantalla.nuevaCasillaVerificacion({
-    funcion:Simu.Diseño.DibujarPines
+  const elementosMenúSuperior = [Simu.botoneraEjecución];
+  if (Simu.ajustes.modoVer == "PINES") {
+    Simu.mostrarPinesDesconectados = Mila.Pantalla.nuevaCasillaVerificacion({
+      funcion:Simu.Diseño.Actualizar
+    });
+    elementosMenúSuperior.ConcatenarCon_([
+      Mila.Pantalla.nuevaEtiqueta({texto:"Mostrar pines desconectados"}),
+      Simu.mostrarPinesDesconectados
+    ]);
+  }
+  Simu.menuSuperior = Mila.Pantalla.nuevoPanel({disposicion:"Horizontal",
+    alto:"Minimizar", elementos:elementosMenúSuperior
   });
-  Simu.menuSuperior = Mila.Pantalla.nuevoPanel({disposicion:"Horizontal",alto:"Minimizar",elementos:[
-    Simu.botoneraEjecución,
-    Mila.Pantalla.nuevaEtiqueta({texto:"Mostrar pines desconectados"}),
-    Simu.mostrarPinesDesconectados
-  ]});
 
   Simu.interprete = Simu.Interprete.nuevo(Simu.Lenguaje.mapaPrimitivas);
 
   Mila.Pantalla.nueva({elementos:[Simu.menuSuperior,Simu.escritorio]});
-  Simu.Diseño.DibujarPines();
+  Simu.Diseño.Actualizar();
 };
 
 Simu.Ejecutar = function() {
@@ -99,7 +125,7 @@ Simu.Pausar = function() {
 
 Simu.Detener = function() {
   Simu.interprete.Detener();
-  Simu.Diseño.ReiniciarValoresPines();
+  Simu.Diseño.Reiniciar();
   Simu.botoneraEjecución.CambiarElementosA_(Simu.botonesDetenido());
 };
 

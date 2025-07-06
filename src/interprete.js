@@ -25,7 +25,7 @@ Simu.Interprete.nuevo = function(api={}) {
 Simu.Interprete._Interprete.prototype.CargarAPI = function(api) {
   this.api = function(interprete, entorno) {
     for (let k in api) {
-      interprete.setProperty(entorno, k, interprete.createNativeFunction(api[k]));
+      interprete.setProperty(entorno, k, Simu.Interprete._funcionApi(interprete, api[k]));
     }
   };
 };
@@ -66,3 +66,9 @@ Simu.Interprete._Interprete.prototype.enEjecución = function() {
   return this.estado.esIgualA_(Simu.Interprete.Estado.Ejecutando) ||
     this.estado.esIgualA_(Simu.Interprete.Estado.Pausado);
 };
+
+Simu.Interprete._funcionApi = function(interprete, funcionOriginal) {
+  return interprete.createNativeFunction(function(parametroOriginal) {
+    return funcionOriginal(interprete.pseudoToNative(parametroOriginal));
+  });
+}

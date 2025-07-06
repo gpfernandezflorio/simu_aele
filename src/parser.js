@@ -27,6 +27,11 @@ Simu.Parser.produccionesPara_ = function(operaciones) {
 
 const datos = {};
 
+const tokensDibujo8x8 = [];
+for (let i=0; i<64; i++) {
+  tokensDibujo8x8.push(o([tt("O"),tt("_")]));
+}
+
 Simu.Parser.configuración = {
   agrupadores: {
     COMANDO: "llavesConSalto",
@@ -41,6 +46,19 @@ Simu.Parser.configuración = {
         return Mila.AST.nuevoNodo({
           tipoNodo: "LiteralNúmero",
           campos: {valor:tokens[0].n()}
+        });
+      }),
+      P(tokensDibujo8x8,function(tokens) {
+        let luces = tokens.map(x=>x.texto());
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "LiteralDibujo8x8",
+          campos: {valor:luces}
+        });
+      }),
+      P(o([tt("HIGH"),tt("LOW")]),function(tokens) {
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "LiteralCorriente",
+          campos: {valor:tokens[0].texto()}
         });
       }),
       P([tv("EXPRESIÓN"),tt("y"),tv("EXPRESIÓN")],function(tokens) {
@@ -129,6 +147,7 @@ Mila.alIniciar(function() {
 });
 
 Simu.Parser.Parsear = function(códigoOriginal) {
+  Simu.Parser.identificadoresOriginales = {}; // Borro cualquier data anterior
   const ast = Simu.Parser.parser.parsear(códigoOriginal);
   // TODO: ¡verificar si falló al parsear!
   const js = ast.transformados(function(n) {
@@ -154,8 +173,14 @@ Simu.Parser.dataNodoAJs = {
   LiteralNúmero: function(nodo, hijos) {
     return `${nodo.valor()}`;
   },
+  LiteralDibujo8x8: function(nodo, hijos) {
+    return `[${nodo.valor().map(x=>`"${x}"`).join(",")}]`;
+  },
+  LiteralCorriente: function(nodo, hijos) {
+    return `"${nodo.valor()}"`;
+  },
   Identificador: function(nodo, hijos) {
-    return nodo.identificador();
+    return Simu.Parser.identificadorVálido(nodo.identificador());
   },
   COMANDO: function(nodo, hijos) {
     return `{\n${hijos.contenido.transformados(x=>`  ${x}`).join("\n")}\n}`;
@@ -163,6 +188,119 @@ Simu.Parser.dataNodoAJs = {
   Nodo: function(nodo, hijos) {
     throw nodo.tipoNodo;
   }
+};
+
+Simu.Parser.caracteresNuméricos = "1234567890";
+
+Simu.Parser.caracteresVálidosIdentificador = Simu.Parser.caracteresNuméricos +
+  "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM_"
+  // + "ñÑáéíóúÁÉÍÓÚàèìòùÀÈÌÒÙäëïöüÄËÏÖÜâêîôûÂÊÎÔÛ"
+;
+
+Simu.Parser.caracteresValidablesIdentificador = {
+  ñ:"n",
+  Ñ:"N",
+  á:"a",
+  é:"e",
+  í:"i",
+  ó:"o",
+  ú:"u",
+  Á:"A",
+  É:"E",
+  Í:"I",
+  Ó:"O",
+  Ú:"U",
+  à:"a",
+  è:"e",
+  ì:"i",
+  ò:"o",
+  ù:"u",
+  À:"A",
+  È:"E",
+  Ì:"I",
+  Ò:"O",
+  Ù:"U",
+  ä:"a",
+  ë:"e",
+  ï:"i",
+  ö:"o",
+  ü:"u",
+  Ä:"A",
+  Ë:"E",
+  Ï:"I",
+  Ö:"O",
+  Ü:"U",
+  â:"a",
+  ê:"e",
+  î:"i",
+  ô:"o",
+  û:"u",
+  Â:"A",
+  Ê:"E",
+  Î:"I",
+  Ô:"O",
+  Û:"U",
+  '?':"P",
+  '!':"I",
+  '(':"C",
+  ')':"D",
+  '"':"_",
+  '#':"R",
+  '$':"S",
+  '%':"X",
+  '&':"X",
+  '/':"I",
+  '\\':"I",
+  '|':"I",
+  '°':"o",
+  '@':"O",
+  '¡':"I",
+  '¿':"L",
+  '>':"Z",
+  '<':"K",
+  '-':"H",
+  '.':"_",
+  ',':"_",
+  ':':"i",
+  ';':"j",
+  '[':"L",
+  ']':"J",
+  '{':"K",
+  '}':"J",
+  '+':"t",
+  '*':"x",
+  '~':"s",
+  "'":"T",
+  '`':"_",
+  '´':"_",
+  '^':"_",
+  '¨':"_",
+  '=':"H",
+  '¬':"h",
+  ' ':"_"
+};
+
+Simu.Parser.identificadoresOriginales = {};
+
+Simu.Parser.identificadorVálido = function(identificadorOriginal) {
+  let nuevoIdentificador = identificadorOriginal.length == 0 || Simu.Parser.caracteresNuméricos.includes(identificadorOriginal[0])
+    ? "_"
+    : ""
+  ;
+  for (let c of identificadorOriginal) {
+    if (Simu.Parser.caracteresVálidosIdentificador.includes(c)) {
+      nuevoIdentificador += c;
+    } else if (c in Simu.Parser.caracteresValidablesIdentificador) {
+      nuevoIdentificador += Simu.Parser.caracteresValidablesIdentificador[c];
+    }
+  }
+  while (nuevoIdentificador in Simu.Parser.identificadoresOriginales &&
+    Simu.Parser.identificadoresOriginales[nuevoIdentificador] != identificadorOriginal
+  ) {
+    nuevoIdentificador += 'x';
+  }
+  Simu.Parser.identificadoresOriginales[nuevoIdentificador] = identificadorOriginal;
+  return nuevoIdentificador;
 };
 
 for (let c in Simu.Lenguaje.comandosPrimitivos) {

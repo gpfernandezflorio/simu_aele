@@ -21,6 +21,22 @@ const P = function(tokens, nodo) {
 };
 
 Simu.Lenguaje.comandosPrimitivos = {
+  "Escribir":{
+    p:P([tt("Escribir"),tv("EXPRESIÓN"),tt("en"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "Escribir",
+        hijos: {pin:tokens[3],valor:tokens[1]}
+      });
+    }),
+    aJs:function(nodo, hijos) {
+      let pin = hijos.pin;
+      let valor = hijos.valor;
+      return `Escribir({pin:${pin},valor:${valor}});`;
+    },
+    exec:function(parametros) {
+      Simu.Diseño.Escribir(parametros.pin, parametros.valor);
+    }
+  },
   "EncenderLed":{
     p:P([tt("Encender"),tt("led"),tv("EXPRESIÓN")],function(tokens) {
       return Mila.AST.nuevoNodo({
@@ -29,7 +45,7 @@ Simu.Lenguaje.comandosPrimitivos = {
       });
     }),
     exec:function(pin) {
-      Simu.Diseño.AsignarValorPin(pin, "HIGH");
+      Simu.Diseño.EncenderLed(pin);
     }
   },
   "ApagarLed":{
@@ -40,7 +56,45 @@ Simu.Lenguaje.comandosPrimitivos = {
       });
     }),
     exec:function(pin) {
-      Simu.Diseño.AsignarValorPin(pin, "LOW");
+      Simu.Diseño.ApagarLed(pin);
+    }
+  },
+  "EncenderBuzzer":{
+    p:P([tt("Encender"),tt("buzzer"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "EncenderBuzzer",
+        hijos: {pin:tokens[2]}
+      });
+    }),
+    exec:function(pin) {
+      Simu.Diseño.EncenderBuzzer(pin);
+    }
+  },
+  "ApagarBuzzer":{
+    p:P([tt("Apagar"),tt("buzzer"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "ApagarBuzzer",
+        hijos: {pin:tokens[2]}
+      });
+    }),
+    exec:function(pin) {
+      Simu.Diseño.ApagarBuzzer(pin);
+    }
+  },
+  "DibujarMatrizLed":{
+    p:P([tt("Dibujar"),tv("EXPRESIÓN"),tt("en"),tv("IDENTIFICADOR")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "DibujarMatrizLed",
+        hijos: {dibujo:tokens[1],nombre:tokens[3]}
+      });
+    }),
+    aJs:function(nodo, hijos) {
+      let dibujo = hijos.dibujo;
+      let nombre = `"${hijos.nombre}"`;
+      return `DibujarMatrizLed({dibujo:${dibujo},nombre:${nombre}});`;
+    },
+    exec:function(parametros) {
+      Simu.Diseño.DibujarMatrizLed(parametros.dibujo, Simu.Parser.identificadoresOriginales[parametros.nombre]);
     }
   },
   "Esperar":{
@@ -62,7 +116,35 @@ Simu.Lenguaje.comandosPrimitivos = {
   }
 };
 
+Simu.Lenguaje.expresionesPrimitivas = {
+  "lecturaDigital":{
+    p:P([tt("lectura"),tt("digital"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "lecturaDigital",
+        hijos: {pin:tokens[2]}
+      });
+    }),
+    exec:function(pin) {
+      Simu.Diseño.lecturaDigital(pin);
+    }
+  },
+  "lecturaAnalogica":{
+    p:P([tt("lectura"),tt("analógica"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "lecturaAnalogica",
+        hijos: {pin:tokens[2]}
+      });
+    }),
+    exec:function(pin) {
+      Simu.Diseño.lecturaAnalogica(pin);
+    }
+  },
+};
+
 Simu.Lenguaje.mapaPrimitivas = {};
 for (let k in Simu.Lenguaje.comandosPrimitivos) {
   Simu.Lenguaje.mapaPrimitivas[k] = Simu.Lenguaje.comandosPrimitivos[k].exec;
+};
+for (let k in Simu.Lenguaje.expresionesPrimitivas) {
+  Simu.Lenguaje.mapaPrimitivas[k] = Simu.Lenguaje.expresionesPrimitivas[k].exec;
 };
