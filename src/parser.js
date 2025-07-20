@@ -38,7 +38,7 @@ Simu.Parser.configuración = {
     EXPRESIÓN: "paréntesis"
   },
   producciones: {
-    EXPRESIÓN: [
+    EXPRESIÓN: Simu.Parser.produccionesPara_(Simu.Lenguaje.expresionesPrimitivas).concatenadaCon_([
       P(tg("EXPRESIÓN"),function(tokens) {
         return Peque.Parser.nodoExpresión(tokens[0].contenido());
       }),
@@ -46,6 +46,12 @@ Simu.Parser.configuración = {
         return Mila.AST.nuevoNodo({
           tipoNodo: "LiteralNúmero",
           campos: {valor:tokens[0].n()}
+        });
+      }),
+      P(o([tt("cierto"),tt("falso")]),function(tokens) {
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "LiteralBooleano",
+          campos: {valor:tokens[0].texto()}
         });
       }),
       P(tokensDibujo8x8,function(tokens) {
@@ -75,6 +81,33 @@ Simu.Parser.configuración = {
           hijos: {izquierdo:tokens[0],derecho:tokens[2]}
         });
       }),
+      P([tv("EXPRESIÓN"),o([
+        tt("+"),
+        tt("-"),
+        tt("."),
+        tt("%"),
+        tt("^")
+      ]),tv("EXPRESIÓN")],function(tokens) {
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "OperaciónBinariaAritmética",
+          campos: {clase:tokens[1].texto()},
+          hijos: {izquierdo:tokens[0],derecho:tokens[2]}
+        });
+      }),
+      P([tt("es"),tv("EXPRESIÓN"),o([
+        tt("mayor"),
+        tt("menor"),
+        tt(">="),
+        tt("<="),
+        tt("igual"),
+        tt("distinto")
+      ]),tt("a"),tv("EXPRESIÓN")],function(tokens) {
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "OperaciónBinariaComparación",
+          campos: {clase:tokens[2].texto()},
+          hijos: {izquierdo:tokens[1],derecho:tokens[4]}
+        });
+      }),
       P([tt("no"),tv("EXPRESIÓN")],function(tokens) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "NegaciónLógica",
@@ -87,7 +120,7 @@ Simu.Parser.configuración = {
           campos: {identificador: tokens.map(Peque.Parser.textoOriginal).join(" ")}
         });
       })
-    ],
+    ]),
     COMANDO: Simu.Parser.produccionesPara_(Simu.Lenguaje.comandosPrimitivos).concatenadaCon_([
       P([tt("Si"),tv("EXPRESIÓN"),tg("COMANDO"),opt(ts()),tt("Si"),tt("no"),tg("COMANDO")],function(tokens) {
         return Mila.AST.nuevoNodo({
@@ -156,6 +189,28 @@ Simu.Parser.Parsear = function(códigoOriginal) {
   return js.snoc(`while(1){${datos.nombreProyecto}();}`).join("\n")
 };
 
+Simu.Parser.operaciónBinaria = function(nodo, hijos) {
+  let op = nodo.clase();
+  if (op == "^") {
+    return `Math.pow(${hijos.izquierdo},${hijos.derecho})`;
+  }
+  op = {
+    "+":"+",
+    "-":"-",
+    ".":"*",
+    "%":"/",
+    "mayor":">",
+    "menor":"<",
+    ">=":">=",
+    "<=":"<=",
+    "igual":"==",
+    "distinto":"!=",
+    "Conjunción":"&&",
+    "Disyunción":"||"
+  }[op];
+  return `((${hijos.izquierdo}) ${op} (${hijos.derecho}))`
+};
+
 Simu.Parser.dataNodoAJs = {
   DefiniciónProyecto: function(nodo, hijos) {
     datos.nombreProyecto = hijos.nombre;
@@ -167,11 +222,22 @@ Simu.Parser.dataNodoAJs = {
   AlternativaCondicionalSimple: function(nodo, hijos) {
     return `if (${hijos.condición}) ${hijos.ramaPositiva}`;
   },
+  AlternativaCondicionalCompuesta: function(nodo, hijos) {
+    return `if (${hijos.condición}) ${hijos.ramaPositiva} else ${hijos.ramaNegativa}`;
+  },
   RepeticiónSimple: function(nodo, hijos) {
     return `for (let i=0; i<${hijos.cantidad}; i++) ${hijos.cuerpo}`;
   },
+  RepeticiónCondicional: function(nodo, hijos) {
+    return `while (${
+      nodo.clase() == "Mientras" ? "" : "!"
+    }${hijos.condición}) ${hijos.cuerpo}`;
+  },
   LiteralNúmero: function(nodo, hijos) {
     return `${nodo.valor()}`;
+  },
+  LiteralBooleano: function(nodo, hijos) {
+    return `${nodo.valor() == "cierto" ? "true" : "false"}`;
   },
   LiteralDibujo8x8: function(nodo, hijos) {
     return `[${nodo.valor().map(x=>`"${x}"`).join(",")}]`;
@@ -181,6 +247,18 @@ Simu.Parser.dataNodoAJs = {
   },
   Identificador: function(nodo, hijos) {
     return Simu.Parser.identificadorVálido(nodo.identificador());
+  },
+  NegaciónLógica: function(nodo, hijos) {
+    return `!(${hijos.operando})`;
+  },
+  OperaciónBinariaLógica: function(nodo, hijos) {
+    return Simu.Parser.operaciónBinaria(nodo, hijos);
+  },
+  OperaciónBinariaAritmética: function(nodo, hijos) {
+    return Simu.Parser.operaciónBinaria(nodo, hijos);
+  },
+  OperaciónBinariaComparación: function(nodo, hijos) {
+    return Simu.Parser.operaciónBinaria(nodo, hijos);
   },
   COMANDO: function(nodo, hijos) {
     return `{\n${hijos.contenido.transformados(x=>`  ${x}`).join("\n")}\n}`;
@@ -304,8 +382,18 @@ Simu.Parser.identificadorVálido = function(identificadorOriginal) {
 };
 
 for (let c in Simu.Lenguaje.comandosPrimitivos) {
-  Simu.Parser.dataNodoAJs[c] = function(nodo, hijos) {
-    return Simu.Parser.comandoPrimitivoJs(c, nodo, hijos);
+  if ('exec' in Simu.Lenguaje.comandosPrimitivos[c]) {
+    Simu.Parser.dataNodoAJs[c] = function(nodo, hijos) {
+      return Simu.Parser.comandoPrimitivoJs(c, nodo, hijos);
+    }
+  }
+};
+
+for (let c in Simu.Lenguaje.expresionesPrimitivas) {
+  if ('exec' in Simu.Lenguaje.expresionesPrimitivas[c]) {
+    Simu.Parser.dataNodoAJs[c] = function(nodo, hijos) {
+      return Simu.Parser.expresiónPrimitivaJs(c, nodo, hijos);
+    }
   }
 };
 
@@ -316,6 +404,15 @@ Simu.Parser.comandoPrimitivoJs = function(c, nodo, hijos) {
   return `${c}(${hijos.fold(function(clave, valor, rec) {
     return rec.cons(valor);
   }, []).join(",")});`;
+};
+
+Simu.Parser.expresiónPrimitivaJs = function(c, nodo, hijos) {
+  if ('aJs' in Simu.Lenguaje.expresionesPrimitivas[c]) {
+    return Simu.Lenguaje.expresionesPrimitivas[c].aJs(nodo, hijos);
+  }
+  return `${c}(${hijos.fold(function(clave, valor, rec) {
+    return rec.cons(valor);
+  }, []).join(",")})`;
 };
 
 Simu.Parser.nodoAJs = function(nodo) {

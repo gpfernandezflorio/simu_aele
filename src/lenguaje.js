@@ -125,7 +125,7 @@ Simu.Lenguaje.expresionesPrimitivas = {
       });
     }),
     exec:function(pin) {
-      Simu.Diseño.lecturaDigital(pin);
+      return Simu.Diseño.lecturaDigital(pin);
     }
   },
   "lecturaAnalogica":{
@@ -136,15 +136,72 @@ Simu.Lenguaje.expresionesPrimitivas = {
       });
     }),
     exec:function(pin) {
-      Simu.Diseño.lecturaAnalogica(pin);
+      return Simu.Diseño.lecturaAnalogica(pin);
     }
   },
+  "distancia":{
+    p:P([tt("distancia"),tv("EXPRESIÓN"),tt("a"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "distancia",
+        hijos: {echo:tokens[1],trigger:tokens[3]}
+      });
+    }),
+    aJs:function(nodo, hijos) {
+      let echo = hijos.echo;
+      let trigger = hijos.trigger;
+      return `distancia({echo:${echo},trigger:${trigger}})`;
+    },
+    exec:function(parametros) {
+      return Simu.Diseño.distancia(parametros.echo, parametros.trigger);
+    }
+  },
+  "estáOscuro":{
+    p:P([tt("está"),o([tt("oscuro"),tt("iluminado")]),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "estáOscuro",
+        campos: {neg:tokens[1].texto() == "oscuro"},
+        hijos: {pin:tokens[2]}
+      });
+    }),
+    aJs:function(nodo, hijos) {
+      return `${nodo.neg ? "" : "!"}estáOscuro(${hijos.pin})`;
+    },
+    exec:function(pin) {
+      return Simu.Diseño.estáOscuro(pin);
+    }
+  },
+  "luminosidad":{
+    p:P([tt("nivel"),tt("de"),tt("luz"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "luminosidad",
+        hijos: {pin:tokens[3], intensidad:"RAW"}
+      });
+    }),
+    aJs:function(nodo, hijos) {
+      return `luminosidad({pin:${hijos.pin}, intensidad:${hijos.intensidad}})`;
+    },
+    exec:function(parametros) {
+      return Simu.Diseño.luminosidad(parametros.pin, parametros.intensidad);
+    }
+  },
+  "luminosidadPorcentaje":{
+    p:P([tt("porcentaje"),tt("de"),tt("luminosidad"),tv("EXPRESIÓN")],function(tokens) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "luminosidad",
+        hijos: {pin:tokens[3], intensidad:"PERCENT"}
+      });
+    })
+  }
 };
 
 Simu.Lenguaje.mapaPrimitivas = {};
 for (let k in Simu.Lenguaje.comandosPrimitivos) {
-  Simu.Lenguaje.mapaPrimitivas[k] = Simu.Lenguaje.comandosPrimitivos[k].exec;
+  if ('exec' in Simu.Lenguaje.comandosPrimitivos[k]) {
+    Simu.Lenguaje.mapaPrimitivas[k] = Simu.Lenguaje.comandosPrimitivos[k].exec;
+  }
 };
 for (let k in Simu.Lenguaje.expresionesPrimitivas) {
-  Simu.Lenguaje.mapaPrimitivas[k] = Simu.Lenguaje.expresionesPrimitivas[k].exec;
+  if ('exec' in Simu.Lenguaje.expresionesPrimitivas[k]) {
+    Simu.Lenguaje.mapaPrimitivas[k] = Simu.Lenguaje.expresionesPrimitivas[k].exec;
+  }
 };

@@ -9,7 +9,7 @@ Mila.Modulo({
 
 Simu.ajustes = {
   modoCódigo:"EDITAR", // VER, EDITAR, NO
-  modoVer:"PINES", // PINES, MODULOS
+  modoVer:"MODULOS", // PINES, MODULOS
   placa:"UNO" // UNO MEGA NANO ...
 };
 
@@ -24,28 +24,38 @@ Mila.alIniciar(function() {
 });
 
 Simu.IniciarSinCódigo = function() {
-//   Simu.textoInicial = "\
-// # Proyecto la luz del colegio {\n\
-//   Si (true) {\n\
-//     Encender led (12)\n\
-//     Esperar (1000)\n\
-//     Apagar led (12)\n\
-//     Esperar (1000)\n\
-//   } Si no, si (false) {\n\
-//   } Si no {\n\
-//   }\n\
-//   Mientras (false) {\n\
-//   }\n\
-//   Hasta (true) {\n\
-//   }\n\
-// }";
 
   Simu.textoInicial = "\
-Proyecto Blink {\n\
-  Encender led 12\n\
-  Esperar 1 s\n\
-  Apagar led 12\n\
-  Esperar 1 s\n\
+Proyecto proyecto sin nombre {\n\
+  Si está oscuro 5 {\n\
+    Encender led 8\n\
+  } Si no {\n\
+    Apagar led 8\n\
+  }\n\
+  Si es distancia 3 a 6\n\
+    menor a 25 {\n\
+    Dibujar\n\
+      _ _ _ _ _ _ _ _\n\
+      _ O O _ _ O O _\n\
+      O _ _ O O _ _ O\n\
+      O _ _ _ _ _ O O\n\
+      O _ _ _ _ _ _ O\n\
+      _ O _ _ _ _ O _\n\
+      _ _ O _ _ O _ _\n\
+      _ _ _ O O _ _ _\n\
+      en mi matriz led\n\
+  } Si no {\n\
+    Dibujar\n\
+      _ _ _ _ _ _ _ _\n\
+      _ _ _ _ _ _ _ _\n\
+      _ _ O _ _ O _ _\n\
+      _ _ O _ _ O _ _\n\
+      _ _ _ _ _ _ _ _\n\
+      _ O _ _ _ _ O _\n\
+      _ _ O O O O _ _\n\
+      _ _ _ _ _ _ _ _\n\
+      en mi matriz led\n\
+  }\n\
 }";
   Simu.IniciarConCódigo(Simu.textoInicial);
 };
@@ -150,4 +160,8 @@ Simu.botonesEnEjecución = function() {
 Simu.DetenerInterpretePor_Milisegundos = function(cantidadMilisegundos) {
   Simu.interprete.Pausar();
   setTimeout(Simu.interprete.Continuar.bind(Simu.interprete), cantidadMilisegundos);
+};
+
+Simu.rutaImagen = function(archivo) {
+  return `../src/img/${archivo}`;
 };

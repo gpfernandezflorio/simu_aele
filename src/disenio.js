@@ -34,22 +34,21 @@ Simu.Diseño.Reiniciar = function() {
 };
 
 Simu.Diseño.pinesIO = {
-  8:{modo:"ENTRADA", rango:"BINARIO"},
-  9:{modo:"SALIDA", rango:"A256", valor:"-"},
-  10:{modo:"SALIDA", rango:"BINARIO", valor:"-"},
-  11:{modo:"ENTRADA", rango:"BINARIO"},
-  12:{modo:"SALIDA", rango:"BINARIO", valor:"-"},
-  A1:{modo:"SALIDA", rango:"BINARIO", valor:"-"},
-  A3:{modo:"ENTRADA", rango:"BINARIO"},
-  A4:{modo:"ENTRADA", rango:"A1024"}
+  // 8:{modo:"ENTRADA", rango:"BINARIO"},
+  // 9:{modo:"SALIDA", rango:"A256", valor:"-"},
+  // 10:{modo:"SALIDA", rango:"BINARIO", valor:"-"},
+  // 11:{modo:"ENTRADA", rango:"BINARIO"},
+  // 12:{modo:"SALIDA", rango:"BINARIO", valor:"-"},
+  // A1:{modo:"SALIDA", rango:"BINARIO", valor:"-"},
+  // A3:{modo:"ENTRADA", rango:"BINARIO"},
+  // A4:{modo:"ENTRADA", rango:"A1024"}
 };
 
 Simu.Diseño.componentes = {
-  LED_3:{componente:"LED", pin:3, modo: ['D','OUT']},
-  LED_4:{componente:"LED", pin:4, modo: ['PWM','OUT']},
-  LED_5:{componente:"LED", pin:5, modo: ['D','OUT']},
-  BUZZER_12:{componente:"BUZZER", pin:12, modo: ['D','OUT']},
-  LED_MATRIX_m:{componente:"LED_MATRIX", nombre:"m"}
+  LED_8:{componente:"LED", pin:8, modo: ['D','OUT']},
+  'LED_MATRIX_mi matriz led':{componente:"LED_MATRIX", nombre:"mi matriz led", pines: [4, 7, 'A0']},
+  LDR_5:{componente:"LDR", pin:5, modo: ['D','IN']},
+  ULTRASONIC_3_6:{componente:"ULTRASONIC", echo:3, trigger:6}
 };
 
 Simu.Diseño.DibujarPines = function() {  
@@ -64,11 +63,18 @@ Simu.Diseño.DibujarPines = function() {
 };
 
 Simu.Diseño.DibujarModulos = function() {
-  const modulos = [];
-  for (let claveModulo in Simu.Diseño.componentes) {
-    modulos.push(Simu.Diseño.panelParaModulo_(claveModulo));
+  let módulosPorLínea = 2;
+  const líneas = [];
+  let módulos = [];
+  for (let claveMódulo in Simu.Diseño.componentes) {
+    if (módulos.length == módulosPorLínea) {
+      líneas.push(Mila.Pantalla.nuevoPanel({disposicion:"Horizontal",alto:"Minimizar",elementos:módulos}));
+      módulos = [];
+    }
+    módulos.push(Simu.Diseño.panelParaModulo_(claveMódulo));
   }
-  Simu.Diseño.panel.CambiarElementosA_(modulos);
+  líneas.push(Mila.Pantalla.nuevoPanel({disposicion:"Horizontal",alto:"Minimizar",elementos:módulos}));
+  Simu.Diseño.panel.CambiarElementosA_(líneas);
 };
 
 Simu.Diseño.panelParaPin_ = function(pin) {
@@ -107,6 +113,7 @@ Simu.Diseño.panelParaPin_ = function(pin) {
 };
 
 Simu.Diseño.panelParaModulo_ = function(claveModulo) {
+  let ancho;
   const modulo = Simu.Diseño.componentes[claveModulo];
   switch (modulo.componente) {
     case "PIN":
@@ -122,51 +129,83 @@ Simu.Diseño.panelParaModulo_ = function(claveModulo) {
         margenExterno:10,margenInterno:10,colorBorde:'#000'
       });
     case "LED":
-      modulo.imagen = Mila.Pantalla.nuevaEtiqueta({texto:"Imagen de una led apagada"});
+      ancho = 80;
+      modulo.imagen = Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("ledApagada.svg"),ancho});
       return Mila.Pantalla.nuevoPanel({elementos:[
         modulo.imagen,
-        Mila.Pantalla.nuevaEtiqueta({texto:`. (pin ${modulo.pin})`})
-      ],ancho:"Minimizar",alto:"Minimizar",disposicion:"Horizontal",
+        Mila.Pantalla.nuevaEtiqueta({texto:`pin ${modulo.pin}`,ancho,tamanioLetra:10})
+      ],ancho:"Minimizar",alto:"Minimizar",
         margenExterno:10,margenInterno:10,colorBorde:'#000'
       });
     case "BUZZER":
       modulo.imagen = Mila.Pantalla.nuevaEtiqueta({texto:"Imagen de un buzzer apagado"});
       return Mila.Pantalla.nuevoPanel({elementos:[
         modulo.imagen,
-        Mila.Pantalla.nuevaEtiqueta({texto:`. (pin ${modulo.pin})`})
+        Mila.Pantalla.nuevaEtiqueta({texto:`. (pin ${modulo.pin})`,tamanioLetra:10})
       ],ancho:"Minimizar",alto:"Minimizar",disposicion:"Horizontal",
         margenExterno:10,margenInterno:10,colorBorde:'#000'
       });
     case "LED_MATRIX":
       Simu.Diseño.CrearPanelParaMatrizLed(modulo);
       return modulo.panel;
+    case "ULTRASONIC":
+      ancho = 180;
+      modulo.etiqueta = Mila.Pantalla.nuevaEtiqueta({texto:'50 cm',ancho});
+      modulo.deslizador = Mila.Pantalla.nuevoDeslizador({ancho});
+      return Mila.Pantalla.nuevoPanel({elementos:[
+        Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("sonar.svg"),ancho}),
+        modulo.etiqueta,
+        modulo.deslizador,
+        Mila.Pantalla.nuevaEtiqueta({texto:`ECHO: ${modulo.echo}    TRIGGER: ${modulo.trigger}`,ancho,tamanioLetra:10})
+      ],ancho:"Minimizar",alto:"Minimizar",
+        margenExterno:10,margenInterno:10,colorBorde:'#000'
+      });
+    case "LDR":
+      ancho = 150;
+      modulo.etiqueta = Mila.Pantalla.nuevaEtiqueta({texto:'50 %',ancho});
+      modulo.deslizador = Mila.Pantalla.nuevoDeslizador();
+      return Mila.Pantalla.nuevoPanel({elementos:[
+        Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("ldr.svg"),ancho}),
+        modulo.etiqueta,
+        modulo.deslizador,
+        Mila.Pantalla.nuevaEtiqueta({texto:`pin ${modulo.pin}`,ancho,tamanioLetra:10})
+      ],ancho:"Minimizar",alto:"Minimizar",
+        margenExterno:10,margenInterno:10,colorBorde:'#000'
+      });
     default:
       return Mila.Pantalla.nuevoPanel();
   }
 };
 
 Simu.Diseño.CrearPanelParaMatrizLed = function(modulo) {
+  let anchoLed = 15;
+  let margenLed = 2;
+  let anchoTotal = (anchoLed + 2*margenLed)*8;
   modulo.imagen = [];
   let filas = [];
-  filas.push(Mila.Pantalla.nuevaEtiqueta({texto:modulo.nombre}));
+  filas.push(Mila.Pantalla.nuevaEtiqueta({texto:modulo.nombre,ancho:anchoTotal}));
   for (let i=1; i<=8; i++) {
     let fila = [];
     for (let j=1; j<=8; j++) {
-      let imagen = Mila.Pantalla.nuevaEtiqueta({texto:"_",
-        margenExterno:Mila.Geometria.rectanguloEn__De_x_(5,0,5,0)
+      let imagen = Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("ledMatrizApagada.svg"),
+        margenExterno:Mila.Geometria.rectanguloEn__De_x_(margenLed,0,margenLed,0),
+        ancho:anchoLed
       });
       modulo.imagen.push(imagen);
       fila.push(imagen);
     }
     filas.push(Mila.Pantalla.nuevoPanel({elementos:fila,
-      disposicion:"Horizontal",ancho:"Minimizar",alto:"Minimizar"
+      disposicion:"Horizontal",ancho:"Minimizar",alto:"Minimizar",
+      colorFondo:"#000"
     }));
   }
   filas.push(Mila.Pantalla.nuevaEtiqueta({texto:
-    `DIN: ${modulo.pines[0]}  CS: ${modulo.pines[1]}  CLK: ${modulo.pines[2]}`,
+    `DIN: ${modulo.pines[0]}    CS: ${modulo.pines[1]}    CLK: ${modulo.pines[2]}`,ancho:anchoTotal,
     tamanioLetra:10,margenExterno:Mila.Geometria.rectanguloEn__De_x_(0,10,0,-10)
   }));
-  modulo.panel = Mila.Pantalla.nuevoPanel({elementos:filas,ancho:"Minimizar",alto:"Minimizar",grosorBorde:2,colorBorde:'#000',margenInterno:10,margenExterno:10});
+  modulo.panel = Mila.Pantalla.nuevoPanel({elementos:filas,ancho:"Minimizar",alto:"Minimizar",
+    grosorBorde:2,colorBorde:'#000',margenInterno:10,margenExterno:10
+  });
 };
 
 Simu.Diseño.Escribir = function(pin, valor) {
@@ -189,13 +228,53 @@ Simu.Diseño.lecturaAnalogica = function(pin) {
 
 };
 
+Simu.Diseño.distancia = function(echo, trigger) {
+  let claveModulo = `ULTRASONIC_${echo}_${trigger}`;
+  if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
+    let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
+    if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
+      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor} cm`);
+    }
+    return valor;
+  }
+  return 0;
+};
+
+Simu.Diseño.estáOscuro = function(pin) {
+  let claveModulo = `LDR_${pin}`;
+  if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
+    let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
+    if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
+      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor} %`);
+    }
+    return valor < 50;
+  }
+  return false;
+};
+
+Simu.Diseño.luminosidad = function(pin, intensidad) {
+  let claveModulo = `LDR_${pin}`;
+  if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
+    let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
+    if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
+      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`'${valor}'`);
+    }
+    if (intensidad == 'PERCENT') {
+      return valor;
+    }
+    // RAW
+    return (100 - valor)*10.24;
+  }
+  return 0;
+};
+
 Simu.Diseño.EncenderLed = function(pin) {
   if (Simu.Diseño.modo == "PINES") {
     Simu.Diseño.AsignarValorPin(pin, "HIGH");
   } else if (Simu.Diseño.modo == "MODULOS") {
     let claveModulo = `LED_${pin}`;
     if (claveModulo in Simu.Diseño.componentes && 'imagen' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].imagen.CambiarTextoA_("Imagen de una led encendida");
+      Simu.Diseño.componentes[claveModulo].imagen.CambiarRutaA_(Simu.rutaImagen("ledPrendida.svg"));
     }
   }
   Mila.Pantalla._Redimensionar();
@@ -207,7 +286,7 @@ Simu.Diseño.ApagarLed = function(pin) {
   } else if (Simu.Diseño.modo == "MODULOS") {
     let claveModulo = `LED_${pin}`;
     if (claveModulo in Simu.Diseño.componentes && 'imagen' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].imagen.CambiarTextoA_("Imagen de una led apagada");
+      Simu.Diseño.componentes[claveModulo].imagen.CambiarRutaA_(Simu.rutaImagen("ledApagada.svg"));
     }
   }
   Mila.Pantalla._Redimensionar();
@@ -243,7 +322,9 @@ Simu.Diseño.DibujarMatrizLed = function(dibujo, nombre) {
     if (claveModulo in Simu.Diseño.componentes && 'imagen' in Simu.Diseño.componentes[claveModulo]) {
       for (let i=0; i<64; i++) {
         if (dibujo.length > i && Simu.Diseño.componentes[claveModulo].imagen.length > i) {
-          Simu.Diseño.componentes[claveModulo].imagen[i].CambiarTextoA_(dibujo[i]);
+          Simu.Diseño.componentes[claveModulo].imagen[i].CambiarRutaA_(
+            Simu.rutaImagen(dibujo[i] == "O" ? "ledMatrizPrendida.svg" : "ledMatrizApagada.svg")
+          );
         }
       }
     }
@@ -277,14 +358,14 @@ Simu.Diseño.ReiniciarValoresMódulos = function() {
         }
         break;
       case "LED":
-        modulo.imagen.CambiarTextoA_("Imagen de una led apagada");
+        modulo.imagen.CambiarRutaA_(Simu.rutaImagen("ledApagada.svg"));
         break;
       case "BUZZER":
         modulo.imagen.CambiarTextoA_("Imagen de un buzzer apagado");
         break;
       case "LED_MATRIX":
         for (let i of modulo.imagen) {
-          i.CambiarTextoA_("_");
+          i.CambiarRutaA_(Simu.rutaImagen("ledMatrizApagada.svg"));
         }
         break;
     }

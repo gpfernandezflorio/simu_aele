@@ -1,0 +1,10 @@
+git pull
+cd src/milascript
+git pull
+cd ../pequescript
+git pull
+cd ../../build/milascript
+git pull
+cd ../pequescript
+git pull
+cd ../..
