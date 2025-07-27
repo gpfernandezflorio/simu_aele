@@ -115,9 +115,11 @@ Simu.Parser.configuración = {
         });
       }),
       P(tv("IDENTIFICADOR"),function(tokens) {
+        // TODO: puede ser una invocación a función o un identificador (una variable, un parámetro, un índice o un valor).
+          // Para el caso de la función, ver la nota del identificador de comandos.
         return Mila.AST.nuevoNodo({
           tipoNodo: "Identificador",
-          campos: {identificador: tokens.map(Peque.Parser.textoOriginal).join(" ")}
+          campos: {identificador: tokens[0].identificador()}
         });
       })
     ]),
@@ -148,9 +150,14 @@ Simu.Parser.configuración = {
         });
       }),
       P(tv("IDENTIFICADOR"),function(tokens) {
+        // Un identificador como comando sólo puede ser una invocación a procedimiento.
+        // TODO: ver si lleva argumentos.
+          // Ojo: tokens[0] es un único token identificador cuyo campo 'identificador' es el string completo.
+          // Quizás agregar una producción por cada definición de procedimiento y que esta sea la de una invocación
+            // a un comando no definido.
         return Mila.AST.nuevoNodo({
-          tipoNodo: "Identificador",
-          campos: {identificador: tokens.map(Peque.Parser.textoOriginal).join(" ")}
+          tipoNodo: "InvocaciónProcedimiento",
+          campos: {identificador: tokens[0].identificador()}
         });
       })
     ]),
@@ -232,6 +239,9 @@ Simu.Parser.dataNodoAJs = {
     return `while (${
       nodo.clase() == "Mientras" ? "" : "!"
     }${hijos.condición}) ${hijos.cuerpo}`;
+  },
+  InvocaciónProcedimiento: function(nodo, hijos) {
+    return `${Simu.Parser.identificadorVálido(nodo.identificador())}();`;
   },
   LiteralNúmero: function(nodo, hijos) {
     return `${nodo.valor()}`;
