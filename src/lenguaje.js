@@ -107,8 +107,10 @@ Simu.Lenguaje.comandosPrimitivos = {
     }),
     aJs:function(nodo, hijos) {
       let unidad = {ms:1,s:1000,mms:0.001}[nodo.unidad()];
-      let cantidad = Number.parseFloat(hijos.cantidad);
-      return `Esperar(${cantidad*unidad});`;
+      let cantidad = hijos.cantidad;
+      let nCantidad = Number.parseFloat(cantidad);
+      let cantidadMs = isNaN(nCantidad) ? `${cantidad}*${unidad}` : cantidad*unidad;
+      return `Esperar(${cantidadMs});`;
     },
     exec:function(cantidadMilisegundos) {
       Simu.DetenerInterpretePor_Milisegundos(cantidadMilisegundos);
