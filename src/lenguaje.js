@@ -5,27 +5,51 @@ Mila.Modulo({
 });
 
 const tt = Peque.Tokens.texto;
-const tl = Peque.Tokens.línea;
-const ts = Peque.Tokens.salto;
-const tiMas = Peque.Tokens.indentarMás;
-const tiMenos = Peque.Tokens.indentarMenos;
-const tn = Peque.Tokens.número;
+
+const tid = Peque.Tokens.tokenIdentificador();
+
 const o = Peque.Tokens.disyunción;
 const opt = Peque.Tokens.opcional;
 const rep = Peque.Tokens.kleene;
-const tv = Peque.Tokens.secuencia;
-const tg = Peque.Tokens.grupo;
+const sec = Peque.Tokens.secuencia;
+const rec = Peque.Tokens.recursivo;
 
 const P = function(tokens, nodo) {
   return Peque.Parser.Produccion.nueva({tokens, nodo});
 };
 
+Simu.Lenguaje.comoPin = function(nodo) {
+  switch (nodo.tipoNodo) {
+    case 'LiteralNúmero':
+      return nodo;
+    case 'Identificador':
+      let nombre = nodo.identificador();
+      if (nombre in Simu.Diseño.placaActual.pines) {
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "LiteralTexto",
+          campos: {valor: nombre},
+          textoOriginal: nodo.textoOriginal
+        });
+      }
+      // TODO: ver si es un valor
+      throw `Pin desconocido: ${nombre}`;
+  }
+  throw `Pin desconocido (${nodo.tipoNodo})`;
+};
+
+Simu.Lenguaje.tiempoAJs = function(cantidad, unidad) {
+  let multiplicador = {ms:1,s:1000,mms:0.001}[unidad];
+  let nCantidad = Number.parseFloat(cantidad);
+  return isNaN(nCantidad) ? `${cantidad}*${multiplicador}` : nCantidad*multiplicador;
+};
+
 Simu.Lenguaje.comandosPrimitivos = {
   "Escribir":{
-    p:P([tt("Escribir"),tv("EXPRESIÓN"),tt("en"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("Escribir"),rec("EXPRESIÓN"),tt("en"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "Escribir",
-        hijos: {pin:tokens[3],valor:tokens[1]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[3]),valor:tokens[1]},
+        textoOriginal
       });
     }),
     aJs:function(nodo, hijos) {
@@ -38,32 +62,76 @@ Simu.Lenguaje.comandosPrimitivos = {
     }
   },
   "EncenderLed":{
-    p:P([tt("Encender"),tt("led"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("Encender"),tt("led"),rec("EXPRESIÓN"),
+      opt(sec([tt("con"),tt("intensidad"),rec("EXPRESIÓN"),opt(tt("%"))])),
+      opt(sec([tt("durante"),rec("EXPRESIÓN"),opt(o([tt("ms"),tt("s"),tt("mms")]))]))
+    ],function(tokens, textoOriginal) {
+      const hijos = {pin:Simu.Lenguaje.comoPin(tokens[2])};
+      let intensidad = "BINARIA";
+      if (tokens.length > 3 && Peque.Parser.esTokenAtómico(tokens[3]) && tokens[3].texto() == 'con') {
+        hijos.valor = tokens[5];
+        intensidad = tokens.length > 6 && Peque.Parser.esTokenAtómico(tokens[6]) && tokens[6].texto() == '%'
+          ? "PORCENTAJE"
+          : "RAW"
+        ;
+      }
+      const campos = {intensidad, unidad:'s'};
+      if (tokens.length > 3 && Peque.Parser.esTokenAtómico(tokens[3]) && tokens[3].texto() == 'durante') {
+        hijos.cantidad = tokens[4];
+        campos.unidad = tokens.length > 5 ? tokens[5].texto() : 's';
+      } else if (tokens.length > 6 && Peque.Parser.esTokenAtómico(tokens[6]) && tokens[6].texto() == 'durante') {
+        hijos.cantidad = tokens[7];
+        campos.unidad = tokens.length > 8 ? tokens[8].texto() : 's';
+      } else if (tokens.length > 7 && Peque.Parser.esTokenAtómico(tokens[7]) && tokens[7].texto() == 'durante') {
+        hijos.cantidad = tokens[8];
+        campos.unidad = tokens.length > 9 ? tokens[9].texto() : 's';
+      }
       return Mila.AST.nuevoNodo({
         tipoNodo: "EncenderLed",
-        hijos: {pin:tokens[2]}
+        campos,
+        hijos,
+        textoOriginal
       });
     }),
-    exec:function(pin) {
-      Simu.Diseño.EncenderLed(pin);
+    aJs:function(nodo, hijos) {
+      let pin = hijos.pin;
+      let intensidad = nodo.intensidad();
+      let valor = hijos.defineLaClavePropia_('valor')
+        ? hijos.valor
+        : '"HIGH"'
+      ;
+      let código = `EncenderLed({pin:${pin},valor:${valor},intensidad:"${intensidad}"});`;
+      if (hijos.defineLaClavePropia_('cantidad')) {
+        código += `\nEsperar(${Simu.Lenguaje.tiempoAJs(hijos.cantidad, nodo.unidad())});\nApagarLed(${pin});`;
+      }
+      return código;
+    },
+    exec:function(parametros) {
+      Simu.Diseño.SetLed(
+        parametros.pin,
+        parametros.valor,
+        parametros.intensidad
+      );
     }
   },
   "ApagarLed":{
-    p:P([tt("Apagar"),tt("led"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("Apagar"),tt("led"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "ApagarLed",
-        hijos: {pin:tokens[2]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[2])},
+        textoOriginal
       });
     }),
     exec:function(pin) {
-      Simu.Diseño.ApagarLed(pin);
+      Simu.Diseño.SetLed(pin, "LOW", "BINARIA");
     }
   },
   "EncenderBuzzer":{
-    p:P([tt("Encender"),tt("buzzer"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("Encender"),tt("buzzer"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "EncenderBuzzer",
-        hijos: {pin:tokens[2]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[2])},
+        textoOriginal
       });
     }),
     exec:function(pin) {
@@ -71,10 +139,11 @@ Simu.Lenguaje.comandosPrimitivos = {
     }
   },
   "ApagarBuzzer":{
-    p:P([tt("Apagar"),tt("buzzer"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("Apagar"),tt("buzzer"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "ApagarBuzzer",
-        hijos: {pin:tokens[2]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[2])},
+        textoOriginal
       });
     }),
     exec:function(pin) {
@@ -82,10 +151,11 @@ Simu.Lenguaje.comandosPrimitivos = {
     }
   },
   "DibujarMatrizLed":{
-    p:P([tt("Dibujar"),tv("EXPRESIÓN"),tt("en"),tv("IDENTIFICADOR")],function(tokens) {
+    p:P([tt("Dibujar"),rec("EXPRESIÓN"),tt("en"),tid],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "DibujarMatrizLed",
-        hijos: {dibujo:tokens[1],nombre:tokens[3]}
+        hijos: {dibujo:tokens[1],nombre:tokens[3]},
+        textoOriginal
       });
     }),
     aJs:function(nodo, hijos) {
@@ -98,18 +168,16 @@ Simu.Lenguaje.comandosPrimitivos = {
     }
   },
   "Esperar":{
-    p:P([tt("Esperar"),tv("EXPRESIÓN"),o([tt("ms"),tt("s"),tt("mms")])],function(tokens) {
+    p:P([tt("Esperar"),rec("EXPRESIÓN"),opt(o([tt("ms"),tt("s"),tt("mms")]))],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "Esperar",
-        campos: {unidad:tokens[2].texto()},
-        hijos: {cantidad:tokens[1]}
+        campos: {unidad:tokens.length > 2 ? tokens[2].texto() : 's'},
+        hijos: {cantidad:tokens[1]},
+        textoOriginal
       });
     }),
     aJs:function(nodo, hijos) {
-      let unidad = {ms:1,s:1000,mms:0.001}[nodo.unidad()];
-      let cantidad = hijos.cantidad;
-      let nCantidad = Number.parseFloat(cantidad);
-      let cantidadMs = isNaN(nCantidad) ? `${cantidad}*${unidad}` : cantidad*unidad;
+      let cantidadMs = Simu.Lenguaje.tiempoAJs(hijos.cantidad, nodo.unidad());
       return `Esperar(${cantidadMs});`;
     },
     exec:function(cantidadMilisegundos) {
@@ -120,10 +188,11 @@ Simu.Lenguaje.comandosPrimitivos = {
 
 Simu.Lenguaje.expresionesPrimitivas = {
   "lecturaDigital":{
-    p:P([tt("lectura"),tt("digital"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("lectura"),tt("digital"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "lecturaDigital",
-        hijos: {pin:tokens[2]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[2])},
+        textoOriginal
       });
     }),
     exec:function(pin) {
@@ -131,10 +200,11 @@ Simu.Lenguaje.expresionesPrimitivas = {
     }
   },
   "lecturaAnalogica":{
-    p:P([tt("lectura"),tt("analógica"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("lectura"),tt("analógica"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "lecturaAnalogica",
-        hijos: {pin:tokens[2]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[2])},
+        textoOriginal
       });
     }),
     exec:function(pin) {
@@ -142,10 +212,11 @@ Simu.Lenguaje.expresionesPrimitivas = {
     }
   },
   "distancia":{
-    p:P([tt("distancia"),tv("EXPRESIÓN"),tt("a"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("distancia"),rec("EXPRESIÓN"),tt("a"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "distancia",
-        hijos: {echo:tokens[1],trigger:tokens[3]}
+        hijos: {echo:Simu.Lenguaje.comoPin(tokens[1]),trigger:Simu.Lenguaje.comoPin(tokens[3])},
+        textoOriginal
       });
     }),
     aJs:function(nodo, hijos) {
@@ -158,11 +229,12 @@ Simu.Lenguaje.expresionesPrimitivas = {
     }
   },
   "estáOscuro":{
-    p:P([tt("está"),o([tt("oscuro"),tt("iluminado")]),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("está"),o([tt("oscuro"),tt("iluminado")]),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "estáOscuro",
         campos: {neg:tokens[1].texto() == "oscuro"},
-        hijos: {pin:tokens[2]}
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[2])},
+        textoOriginal
       });
     }),
     aJs:function(nodo, hijos) {
@@ -173,24 +245,28 @@ Simu.Lenguaje.expresionesPrimitivas = {
     }
   },
   "luminosidad":{
-    p:P([tt("nivel"),tt("de"),tt("luz"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("nivel"),tt("de"),tt("luz"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "luminosidad",
-        hijos: {pin:tokens[3], intensidad:"RAW"}
+        campos: {intensidad:"RAW"},
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[3])},
+        textoOriginal
       });
     }),
     aJs:function(nodo, hijos) {
-      return `luminosidad({pin:${hijos.pin}, intensidad:${hijos.intensidad}})`;
+      return `luminosidad({pin:${hijos.pin}, intensidad:"${nodo.intensidad()}"})`;
     },
     exec:function(parametros) {
       return Simu.Diseño.luminosidad(parametros.pin, parametros.intensidad);
     }
   },
   "luminosidadPorcentaje":{
-    p:P([tt("porcentaje"),tt("de"),tt("luminosidad"),tv("EXPRESIÓN")],function(tokens) {
+    p:P([tt("porcentaje"),tt("de"),tt("luminosidad"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
       return Mila.AST.nuevoNodo({
         tipoNodo: "luminosidad",
-        hijos: {pin:tokens[3], intensidad:"PERCENT"}
+        campos: {intensidad:"PORCENTAJE"},
+        hijos: {pin:Simu.Lenguaje.comoPin(tokens[3])},
+        textoOriginal
       });
     })
   }

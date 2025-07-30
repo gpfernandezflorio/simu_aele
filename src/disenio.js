@@ -131,9 +131,13 @@ Simu.Diseño.panelParaModulo_ = function(claveModulo) {
     case "LED":
       ancho = 80;
       modulo.imagen = Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("ledApagada.svg"),ancho});
+      modulo.valor = Mila.Pantalla.nuevaEtiqueta({texto:"-",tamanioLetra:10,ancho:"Maximizar"})
       return Mila.Pantalla.nuevoPanel({elementos:[
         modulo.imagen,
-        Mila.Pantalla.nuevaEtiqueta({texto:`pin ${modulo.pin}`,ancho,tamanioLetra:10})
+        Mila.Pantalla.nuevoPanel({elementos:[
+          Mila.Pantalla.nuevaEtiqueta({texto:`pin ${modulo.pin} : `,tamanioLetra:10,ancho:"Maximizar"}),
+          modulo.valor
+        ],disposicion:"Horizontal",alto:"Minimizar",ancho})
       ],ancho:"Minimizar",alto:"Minimizar",
         margenExterno:10,margenInterno:10,colorBorde:'#000'
       });
@@ -257,9 +261,9 @@ Simu.Diseño.luminosidad = function(pin, intensidad) {
   if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
     let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
     if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`'${valor}'`);
+      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor} %`);
     }
-    if (intensidad == 'PERCENT') {
+    if (intensidad == 'PORCENTAJE') {
       return valor;
     }
     // RAW
@@ -268,25 +272,18 @@ Simu.Diseño.luminosidad = function(pin, intensidad) {
   return 0;
 };
 
-Simu.Diseño.EncenderLed = function(pin) {
+Simu.Diseño.SetLed = function(pin, valor, intensidad) {
   if (Simu.Diseño.modo == "PINES") {
-    Simu.Diseño.AsignarValorPin(pin, "HIGH");
+    Simu.Diseño.AsignarValorPin(pin, valor);
   } else if (Simu.Diseño.modo == "MODULOS") {
     let claveModulo = `LED_${pin}`;
-    if (claveModulo in Simu.Diseño.componentes && 'imagen' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].imagen.CambiarRutaA_(Simu.rutaImagen("ledPrendida.svg"));
-    }
-  }
-  Mila.Pantalla._Redimensionar();
-};
-
-Simu.Diseño.ApagarLed = function(pin) {
-  if (Simu.Diseño.modo == "PINES") {
-    Simu.Diseño.AsignarValorPin(pin, "LOW");
-  } else if (Simu.Diseño.modo == "MODULOS") {
-    let claveModulo = `LED_${pin}`;
-    if (claveModulo in Simu.Diseño.componentes && 'imagen' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].imagen.CambiarRutaA_(Simu.rutaImagen("ledApagada.svg"));
+    if (claveModulo in Simu.Diseño.componentes) {
+      if ('imagen' in Simu.Diseño.componentes[claveModulo]) {
+        Simu.Diseño.componentes[claveModulo].imagen.CambiarRutaA_(Simu.rutaImagen(`led${valor == "LOW" ? "Apagada" : "Prendida"}.svg`));
+      }
+      if ('valor' in Simu.Diseño.componentes[claveModulo]) {
+        Simu.Diseño.componentes[claveModulo].valor.CambiarTextoA_(valor + (intensidad == "PORCENTAJE" ? "%" : ""));
+      }
     }
   }
   Mila.Pantalla._Redimensionar();
@@ -359,6 +356,7 @@ Simu.Diseño.ReiniciarValoresMódulos = function() {
         break;
       case "LED":
         modulo.imagen.CambiarRutaA_(Simu.rutaImagen("ledApagada.svg"));
+        modulo.valor.CambiarTextoA_("-");
         break;
       case "BUZZER":
         modulo.imagen.CambiarTextoA_("Imagen de un buzzer apagado");

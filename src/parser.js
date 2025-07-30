@@ -4,16 +4,15 @@ Mila.Modulo({
 });
 
 const tt = Peque.Tokens.texto;
-const tl = Peque.Tokens.línea;
-const ts = Peque.Tokens.salto;
-const tiMas = Peque.Tokens.indentarMás;
-const tiMenos = Peque.Tokens.indentarMenos;
-const tn = Peque.Tokens.número;
+const ts = Peque.Tokens.salto();
+
+const tid = Peque.Tokens.tokenIdentificador();
+
 const o = Peque.Tokens.disyunción;
 const opt = Peque.Tokens.opcional;
 const rep = Peque.Tokens.kleene;
-const tv = Peque.Tokens.secuencia;
-const tg = Peque.Tokens.grupo;
+const tg = Peque.Tokens.agrupado;
+const rec = Peque.Tokens.recursivo;
 
 const P = function(tokens, nodo) {
   return Peque.Parser.Produccion.nueva({tokens, nodo});
@@ -39,117 +38,141 @@ Simu.Parser.configuración = {
   },
   producciones: {
     EXPRESIÓN: Simu.Parser.produccionesPara_(Simu.Lenguaje.expresionesPrimitivas).concatenadaCon_([
-      P(tg("EXPRESIÓN"),function(tokens) {
-        return Peque.Parser.nodoExpresión(tokens[0].contenido());
+      P(tg("EXPRESIÓN"),function(tokens, textoOriginal) {
+        if (tokens[0].contenido().length != 1) { debugger; }
+        return tokens[0].contenido()[0];
       }),
-      P(tn(),function(tokens) {
-        return Mila.AST.nuevoNodo({
-          tipoNodo: "LiteralNúmero",
-          campos: {valor:tokens[0].n()}
-        });
-      }),
-      P(o([tt("cierto"),tt("falso")]),function(tokens) {
+      P(o([tt("cierto"),tt("falso")]),function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "LiteralBooleano",
-          campos: {valor:tokens[0].texto()}
+          campos: {valor:tokens[0].texto()},
+          textoOriginal
         });
       }),
-      P(tokensDibujo8x8,function(tokens) {
+      P([tt('"'),tid,tt('"')],function(tokens, textoOriginal) {
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "LiteralTexto",
+          campos: {valor:tokens[1].identificador()},
+          textoOriginal
+        });
+      }),
+      P(tokensDibujo8x8,function(tokens, textoOriginal) {
         let luces = tokens.map(x=>x.texto());
         return Mila.AST.nuevoNodo({
           tipoNodo: "LiteralDibujo8x8",
-          campos: {valor:luces}
+          campos: {valor:luces},
+          textoOriginal
         });
       }),
-      P(o([tt("HIGH"),tt("LOW")]),function(tokens) {
+      P(o([tt("HIGH"),tt("LOW")]),function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "LiteralCorriente",
-          campos: {valor:tokens[0].texto()}
+          campos: {valor:tokens[0].texto()},
+          textoOriginal
         });
       }),
-      P([tv("EXPRESIÓN"),tt("y"),tv("EXPRESIÓN")],function(tokens) {
+      P([rec("EXPRESIÓN"),tt("y"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "OperaciónBinariaLógica",
           campos: {clase:"Conjunción"},
-          hijos: {izquierdo:tokens[0],derecho:tokens[2]}
+          hijos: {izquierdo:tokens[0],derecho:tokens[2]},
+          textoOriginal
         });
       }),
-      P([tv("EXPRESIÓN"),tt("o"),tv("EXPRESIÓN")],function(tokens) {
+      P([rec("EXPRESIÓN"),tt("o"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "OperaciónBinariaLógica",
           campos: {clase:"Disyunción"},
-          hijos: {izquierdo:tokens[0],derecho:tokens[2]}
+          hijos: {izquierdo:tokens[0],derecho:tokens[2]},
+          textoOriginal
         });
       }),
-      P([tv("EXPRESIÓN"),o([
+      P([rec("EXPRESIÓN"),o([
         tt("+"),
         tt("-"),
         tt("."),
         tt("%"),
         tt("^")
-      ]),tv("EXPRESIÓN")],function(tokens) {
+      ]),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "OperaciónBinariaAritmética",
           campos: {clase:tokens[1].texto()},
-          hijos: {izquierdo:tokens[0],derecho:tokens[2]}
+          hijos: {izquierdo:tokens[0],derecho:tokens[2]},
+          textoOriginal
         });
       }),
-      P([tt("es"),tv("EXPRESIÓN"),o([
+      P([tt("es"),rec("EXPRESIÓN"),o([
         tt("mayor"),
         tt("menor"),
         tt(">="),
         tt("<="),
         tt("igual"),
         tt("distinto")
-      ]),tt("a"),tv("EXPRESIÓN")],function(tokens) {
+      ]),tt("a"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "OperaciónBinariaComparación",
           campos: {clase:tokens[2].texto()},
-          hijos: {izquierdo:tokens[1],derecho:tokens[4]}
+          hijos: {izquierdo:tokens[1],derecho:tokens[4]},
+          textoOriginal
         });
       }),
-      P([tt("no"),tv("EXPRESIÓN")],function(tokens) {
+      P([tt("no"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "NegaciónLógica",
-          hijos: {operando:tokens[1]}
+          hijos: {operando:tokens[1]},
+          textoOriginal
         });
       }),
-      P(tv("IDENTIFICADOR"),function(tokens) {
-        // TODO: puede ser una invocación a función o un identificador (una variable, un parámetro, un índice o un valor).
-          // Para el caso de la función, ver la nota del identificador de comandos.
-        return Mila.AST.nuevoNodo({
-          tipoNodo: "Identificador",
-          campos: {identificador: tokens[0].identificador()}
-        });
+      P(tid,function(tokens, textoOriginal) {
+        let n = Number.parseFloat(tokens[0].identificador());
+        if (isNaN(n)) {
+          // TODO: puede ser una invocación a función o un identificador (una variable, un parámetro, un índice o un valor).
+            // Para el caso de la función, ver la nota del identificador de comandos.
+          return Mila.AST.nuevoNodo({
+            tipoNodo: "Identificador",
+            campos: {identificador: tokens[0].identificador()},
+            textoOriginal
+          });
+        } else {
+          return Mila.AST.nuevoNodo({
+            tipoNodo: "LiteralNúmero",
+            campos: {valor:n}
+          });
+        }
       })
     ]),
     COMANDO: Simu.Parser.produccionesPara_(Simu.Lenguaje.comandosPrimitivos).concatenadaCon_([
-      P([tt("Si"),tv("EXPRESIÓN"),tg("COMANDO"),opt(ts()),tt("Si"),tt("no"),tg("COMANDO")],function(tokens) {
+      P([tt("Si"),rec("EXPRESIÓN"),tg("COMANDO"),opt(ts),tt("Si"),tt("no"),tg("COMANDO")],function(tokens, textoOriginal) {
+        let iRamaNegativa = tokens.length-1;
         return Mila.AST.nuevoNodo({
           tipoNodo: "AlternativaCondicionalCompuesta",
-          hijos: {condición:tokens[1], ramaPositiva:tokens[2], ramaNegativa:tokens[5]}
+          hijos: {condición:tokens[1], ramaPositiva:tokens[2].contenido(), ramaNegativa:tokens[iRamaNegativa].contenido()},
+          textoOriginal
         });
       }),
-      P([tt("Si"),tv("EXPRESIÓN"),tg("COMANDO")],function(tokens) {
+      P([tt("Si"),rec("EXPRESIÓN"),tg("COMANDO")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "AlternativaCondicionalSimple",
-          hijos: {condición:tokens[1], ramaPositiva:tokens[2]}
+          hijos: {condición:tokens[1], ramaPositiva:tokens[2].contenido()},
+          textoOriginal
         });
       }),
-      P([tt("Repetir"),tv("EXPRESIÓN"),tg("COMANDO")],function(tokens) {
+      P([tt("Repetir"),rec("EXPRESIÓN"),tg("COMANDO")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "RepeticiónSimple",
-          hijos: {cantidad:tokens[1], cuerpo:tokens[2]}
+          hijos: {cantidad:tokens[1], cuerpo:tokens[2].contenido()},
+          textoOriginal
         });
       }),
-      P([o([tt("Mientras"),tt("Hasta")]),tv("EXPRESIÓN"),tg("COMANDO")],function(tokens) {
+      P([o([tt("Mientras"),tt("Hasta")]),rec("EXPRESIÓN"),tg("COMANDO")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "RepeticiónCondicional",
           campos: {clase: tokens[0].texto()},
-          hijos: {condición:tokens[1], cuerpo:tokens[2]}
+          hijos: {condición:tokens[1], cuerpo:tokens[2].contenido()},
+          textoOriginal
         });
       }),
-      P(tv("IDENTIFICADOR"),function(tokens) {
+      P(tid,function(tokens, textoOriginal) {
         // Un identificador como comando sólo puede ser una invocación a procedimiento.
         // TODO: ver si lleva argumentos.
           // Ojo: tokens[0] es un único token identificador cuyo campo 'identificador' es el string completo.
@@ -157,21 +180,24 @@ Simu.Parser.configuración = {
             // a un comando no definido.
         return Mila.AST.nuevoNodo({
           tipoNodo: "InvocaciónProcedimiento",
-          campos: {identificador: tokens[0].identificador()}
+          campos: {identificador: tokens[0].identificador()},
+          textoOriginal
         });
       })
     ]),
     DEFINICION: [
-      P([tt("Proyecto"),tv("IDENTIFICADOR"),tg("COMANDO")],function(tokens) {
+      P([tt("Proyecto"),tid,tg("COMANDO")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "DefiniciónProyecto",
-          hijos: {nombre:tokens[1], cuerpo:tokens[2]}
+          hijos: {nombre:tokens[1], cuerpo:tokens[2].contenido()},
+          textoOriginal
         });
       }),
-      P([tt("Procedimiento"),tv("IDENTIFICADOR"),tg("COMANDO")],function(tokens) {
+      P([tt("Procedimiento"),tid,tg("COMANDO")],function(tokens, textoOriginal) {
         return Mila.AST.nuevoNodo({
           tipoNodo: "DefiniciónProcedimiento",
-          hijos: {nombre:tokens[1], cuerpo:tokens[2]}
+          hijos: {nombre:tokens[1], cuerpo:tokens[2].contenido()},
+          textoOriginal
         });
       })
     ]
@@ -218,36 +244,51 @@ Simu.Parser.operaciónBinaria = function(nodo, hijos) {
   return `((${hijos.izquierdo}) ${op} (${hijos.derecho}))`
 };
 
+const s = function(k) {
+  let resultado = "";
+  for (let i=0; i<k; i++) {
+    resultado += "  ";
+  }
+  return resultado;
+};
+
+Simu.Parser._cuerpoAJs = function(cuerpo) {
+  return `{\n${cuerpo.join('\n')}\n}\n`
+};
+
 Simu.Parser.dataNodoAJs = {
   DefiniciónProyecto: function(nodo, hijos) {
     datos.nombreProyecto = hijos.nombre;
-    return `function ${hijos.nombre}() ${hijos.cuerpo}`;
+    return `${s(nodo.nivel)}function ${hijos.nombre}() ${Simu.Parser._cuerpoAJs(hijos.cuerpo)}`;
   },
   DefiniciónProcedimiento: function(nodo, hijos) {
-    return `function ${hijos.nombre}() ${hijos.cuerpo}`;
+    return `${s(nodo.nivel)}function ${hijos.nombre}() ${Simu.Parser._cuerpoAJs(hijos.cuerpo)}`;
   },
   AlternativaCondicionalSimple: function(nodo, hijos) {
-    return `if (${hijos.condición}) ${hijos.ramaPositiva}`;
+    return `${s(nodo.nivel)}if (${hijos.condición}) ${Simu.Parser._cuerpoAJs(hijos.ramaPositiva)}`;
   },
   AlternativaCondicionalCompuesta: function(nodo, hijos) {
-    return `if (${hijos.condición}) ${hijos.ramaPositiva} else ${hijos.ramaNegativa}`;
+    return `${s(nodo.nivel)}if (${hijos.condición}) ${Simu.Parser._cuerpoAJs(hijos.ramaPositiva)} else ${Simu.Parser._cuerpoAJs(hijos.ramaNegativa)}`;
   },
   RepeticiónSimple: function(nodo, hijos) {
-    return `for (let i=0; i<${hijos.cantidad}; i++) ${hijos.cuerpo}`;
+    return `${s(nodo.nivel)}for (let i=0; i<${hijos.cantidad}; i++) ${Simu.Parser._cuerpoAJs(hijos.cuerpo)}`;
   },
   RepeticiónCondicional: function(nodo, hijos) {
-    return `while (${
+    return `${s(nodo.nivel)}while (${
       nodo.clase() == "Mientras" ? "" : "!"
-    }${hijos.condición}) ${hijos.cuerpo}`;
+    }${hijos.condición}) ${Simu.Parser._cuerpoAJs(hijos.cuerpo)}`;
   },
   InvocaciónProcedimiento: function(nodo, hijos) {
-    return `${Simu.Parser.identificadorVálido(nodo.identificador())}();`;
+    return `${s(nodo.nivel)}${Simu.Parser.identificadorVálido(nodo.identificador())}();\n`;
   },
   LiteralNúmero: function(nodo, hijos) {
     return `${nodo.valor()}`;
   },
   LiteralBooleano: function(nodo, hijos) {
     return `${nodo.valor() == "cierto" ? "true" : "false"}`;
+  },
+  LiteralTexto: function(nodo, hijos) {
+    return `"${nodo.valor()}"`;
   },
   LiteralDibujo8x8: function(nodo, hijos) {
     return `[${nodo.valor().map(x=>`"${x}"`).join(",")}]`;
@@ -270,10 +311,13 @@ Simu.Parser.dataNodoAJs = {
   OperaciónBinariaComparación: function(nodo, hijos) {
     return Simu.Parser.operaciónBinaria(nodo, hijos);
   },
-  COMANDO: function(nodo, hijos) {
-    return `{\n${hijos.contenido.transformados(x=>`  ${x}`).join("\n")}\n}`;
+  Atómico: function(nodo, hijos) {
+    // Asumo que es Texto
+    if (nodo.token().clase != "Texto") { debugger; }
+    return nodo.token().contenido;
   },
   Nodo: function(nodo, hijos) {
+    debugger;
     throw nodo.tipoNodo;
   }
 };
@@ -409,9 +453,9 @@ for (let c in Simu.Lenguaje.expresionesPrimitivas) {
 
 Simu.Parser.comandoPrimitivoJs = function(c, nodo, hijos) {
   if ('aJs' in Simu.Lenguaje.comandosPrimitivos[c]) {
-    return Simu.Lenguaje.comandosPrimitivos[c].aJs(nodo, hijos);
+    return s(nodo.nivel) + Simu.Lenguaje.comandosPrimitivos[c].aJs(nodo, hijos).split("\n").join(`\n${s(nodo.nivel)}`);
   }
-  return `${c}(${hijos.fold(function(clave, valor, rec) {
+  return `${s(nodo.nivel)}${c}(${hijos.fold(function(clave, valor, rec) {
     return rec.cons(valor);
   }, []).join(",")});`;
 };
