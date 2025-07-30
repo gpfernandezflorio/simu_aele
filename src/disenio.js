@@ -176,6 +176,19 @@ Simu.Diseño.panelParaModulo_ = function(claveModulo) {
       ],ancho:"Minimizar",alto:"Minimizar",
         margenExterno:10,margenInterno:10,colorBorde:'#000'
       });
+    case "MONITOR":
+      modulo.areaTexto = Mila.Pantalla.nuevaAreaTexto({editable:false,tamanioLetra:10});
+      modulo.autoscroll = Mila.Pantalla.nuevaCasillaVerificacion({marcada:true});
+      return Mila.Pantalla.nuevoPanel({elementos:[
+        Mila.Pantalla.nuevoPanel({elementos:[
+          Mila.Pantalla.nuevaEtiqueta({texto:"Monitor serial",tamanioLetra:10,margenExterno:Mila.Geometria.rectanguloEn__De_x_(0,0,15,0)}),
+          modulo.autoscroll,
+          Mila.Pantalla.nuevaEtiqueta({texto:"autoscroll",tamanioLetra:10}),
+        ],disposicion:"Horizontal",alto:"Minimizar"}),
+        modulo.areaTexto
+      ],//ancho:"Minimizar",alto:"Minimizar",
+        margenExterno:10,margenInterno:10,colorBorde:'#000'
+      });
     default:
       return Mila.Pantalla.nuevoPanel();
   }
@@ -267,9 +280,24 @@ Simu.Diseño.luminosidad = function(pin, intensidad) {
       return valor;
     }
     // RAW
-    return (100 - valor)*10.24;
+    return Math.round((100 - valor)*10.24);
   }
   return 0;
+};
+
+Simu.Diseño.Decir = function(mensaje) {
+  if (Simu.Diseño.modo == "MODULOS") {
+    let claveModulo = "MONITOR";
+    if (claveModulo in Simu.Diseño.componentes && 'areaTexto' in Simu.Diseño.componentes[claveModulo]) {
+      Simu.Diseño.componentes[claveModulo].areaTexto.CambiarTextoA_(
+        Simu.Diseño.componentes[claveModulo].areaTexto.texto() + "\n" + mensaje
+      );
+      if ('autoscroll' in Simu.Diseño.componentes[claveModulo] && Simu.Diseño.componentes[claveModulo].autoscroll.marcada()) {
+        const nodoHtml = Simu.Diseño.componentes[claveModulo].areaTexto._nodoHtml;
+        nodoHtml.scrollTo(nodoHtml.scrollLeft, nodoHtml.scrollHeight);
+      }
+    }
+  }
 };
 
 Simu.Diseño.SetLed = function(pin, valor, intensidad) {
@@ -365,6 +393,9 @@ Simu.Diseño.ReiniciarValoresMódulos = function() {
         for (let i of modulo.imagen) {
           i.CambiarRutaA_(Simu.rutaImagen("ledMatrizApagada.svg"));
         }
+        break;
+      case "MONITOR":
+        modulo.areaTexto.CambiarTextoA_("");
         break;
     }
   }

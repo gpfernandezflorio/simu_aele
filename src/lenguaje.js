@@ -183,6 +183,18 @@ Simu.Lenguaje.comandosPrimitivos = {
     exec:function(cantidadMilisegundos) {
       Simu.DetenerInterpretePor_Milisegundos(cantidadMilisegundos);
     }
+  },
+  "Decir":{
+    p:P([tt("Decir"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "Decir",
+        hijos: {mensaje:tokens[1]},
+        textoOriginal
+      });
+    }),
+    exec:function(mensaje) {
+      Simu.Diseño.Decir(mensaje);
+    }
   }
 };
 

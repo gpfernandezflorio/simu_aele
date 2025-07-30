@@ -49,13 +49,6 @@ Simu.Parser.configuración = {
           textoOriginal
         });
       }),
-      P([tt('"'),tid,tt('"')],function(tokens, textoOriginal) {
-        return Mila.AST.nuevoNodo({
-          tipoNodo: "LiteralTexto",
-          campos: {valor:tokens[1].identificador()},
-          textoOriginal
-        });
-      }),
       P(tokensDibujo8x8,function(tokens, textoOriginal) {
         let luces = tokens.map(x=>x.texto());
         return Mila.AST.nuevoNodo({
@@ -124,15 +117,24 @@ Simu.Parser.configuración = {
         });
       }),
       P(tid,function(tokens, textoOriginal) {
-        let n = Number.parseFloat(tokens[0].identificador());
+        let textoCompleto = tokens[0].identificador();
+        let n = Number.parseFloat(textoCompleto);
         if (isNaN(n)) {
-          // TODO: puede ser una invocación a función o un identificador (una variable, un parámetro, un índice o un valor).
-            // Para el caso de la función, ver la nota del identificador de comandos.
-          return Mila.AST.nuevoNodo({
-            tipoNodo: "Identificador",
-            campos: {identificador: tokens[0].identificador()},
-            textoOriginal
-          });
+          if (textoCompleto[0] == '"' && textoCompleto[textoCompleto.length-1] == '"') {
+            return Mila.AST.nuevoNodo({
+              tipoNodo: "LiteralTexto",
+              campos: {valor:textoCompleto.slice(1,-1)},
+              textoOriginal
+            });
+          } else {
+            // TODO: puede ser una invocación a función o un identificador (una variable, un parámetro, un índice o un valor).
+              // Para el caso de la función, ver la nota del identificador de comandos.
+            return Mila.AST.nuevoNodo({
+              tipoNodo: "Identificador",
+              campos: {identificador: textoCompleto},
+              textoOriginal
+            });
+          }
         } else {
           return Mila.AST.nuevoNodo({
             tipoNodo: "LiteralNúmero",
