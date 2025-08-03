@@ -114,8 +114,40 @@ Simu.IniciarConCódigo = function(código) {
 
   Simu.interprete = Simu.Interprete.nuevo(Simu.Lenguaje.mapaPrimitivas);
 
-  Mila.Pantalla.nueva({elementos:[Simu.menuSuperior,Simu.escritorio]});
+  Mila.Pantalla.nueva({elementos:[Simu.menuSuperior,Simu.escritorio]}, "Principal");
   Simu.Diseño.Actualizar();
+
+  // Pantalla Boom
+  Simu.etiquetaBoom = Mila.Pantalla.nuevaEtiqueta({texto:"-",ancho:"Maximizar"});
+  Mila.Pantalla.nueva({elementos:[
+    Mila.Pantalla.nuevoPanel({elementos:[
+        Mila.Pantalla.nuevaEtiqueta({texto:"BOOM",ancho:"Maximizar"}),
+        Simu.etiquetaBoom,
+        Mila.Pantalla.nuevoPanel({elementos:[Mila.Pantalla.nuevoBoton({texto:"Aceptar",cssAdicional:{
+          position:"static","margin-left":"auto","margin-right":"auto",display:"table"},
+        funcion:Simu.CerrarPantallaBoom})]})
+      ],ancho:"Maximizar",alto:"Maximizar"}
+    ),
+      Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("boom.png"),alto:"Maximizar",cssAdicional:{
+        position:"static","margin-left":"auto","margin-right":"auto",display:"block"}
+      })
+    ],
+    disposicion:Mila.Pantalla.DisposicionVerticalInvertida
+  }, "Boom");
+};
+
+Simu.Boom = function(código) {
+  Simu.EjecutarCódigo_(`${código}while(1){}`);
+};
+
+Simu.CerrarPantallaBoom = function() {
+  Mila.Pantalla.CambiarA_("Principal");
+  Simu.Diseño.AgregarListenersDeslizadores();
+};
+
+Simu.PantallaBoom = function(msg) {
+  Simu.etiquetaBoom.CambiarTextoA_(msg);
+  Mila.Pantalla.CambiarA_("Boom");
 };
 
 Simu.Ejecutar = function() {
@@ -124,9 +156,7 @@ Simu.Ejecutar = function() {
   if (código.esNada()) {
     return;
   }
-  console.log(código);
-  Simu.interprete.CargarCodigo(código);
-  Simu.interprete.Ejecutar();
+  Simu.EjecutarCódigo_(código);
   Simu.botoneraEjecución.CambiarElementosA_(Simu.botonesEnEjecución());
 };
 
@@ -143,6 +173,14 @@ Simu.Continuar = function() {
 };
 
 Simu.Reiniciar = function() {
+  Simu.interprete.Detener();
+  Simu.Diseño.Reiniciar();
+  Simu.botoneraEjecución.CambiarElementosA_(Simu.botonesDetenido());
+};
+
+Simu.Finalizar = function() {
+  Simu.interprete.Detener();
+  Simu.botoneraEjecución.CambiarElementosA_(Simu.botonesFinalizado());
 };
 
 Simu.botonesDetenido = function() {
@@ -157,10 +195,20 @@ Simu.botonesEnEjecución = function() {
   ];
 };
 
+Simu.botonesFinalizado = function() {
+  return [Simu.botonReiniciar];
+};
+
 Simu.DetenerInterpretePor_Milisegundos = function(cantidadMilisegundos) {
   Simu.interprete.Pausar();
   setTimeout(Simu.interprete.Continuar.bind(Simu.interprete), cantidadMilisegundos);
 };
+
+Simu.EjecutarCódigo_ = function(código) {
+  console.log(código);
+  Simu.interprete.CargarCodigo(código);
+  Simu.interprete.Ejecutar();
+}
 
 Simu.rutaImagen = function(archivo) {
   return `../src/img/${archivo}`;

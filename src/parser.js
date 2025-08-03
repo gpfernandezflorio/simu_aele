@@ -24,8 +24,6 @@ Simu.Parser.produccionesPara_ = function(operaciones) {
   }, []);
 };
 
-const datos = {};
-
 const tokensDibujo8x8 = [];
 for (let i=0; i<64; i++) {
   tokensDibujo8x8.push(o([tt("O"),tt("_")]));
@@ -188,10 +186,29 @@ Simu.Parser.configuración = {
       })
     ]),
     DEFINICION: [
-      P([tt("Proyecto"),tid,tg("COMANDO")],function(tokens, textoOriginal) {
+      P([tt("Proyecto"),tid,tg("COMANDO"),opt(ts),tg("COMANDO")],function(tokens, textoOriginal) {
+        let setup = tokens[2].contenido();
+        let cuerpo = tokens[tokens.length-1].contenido();
         return Mila.AST.nuevoNodo({
           tipoNodo: "DefiniciónProyecto",
-          hijos: {nombre:tokens[1], cuerpo:tokens[2].contenido()},
+          hijos: {nombre:tokens[1], cuerpo, setup},
+          textoOriginal
+        });
+      }),
+      P([tt("Proyecto"),tid,tg("COMANDO")],function(tokens, textoOriginal) {
+        let cuerpo = tokens[2].contenido();
+        let setup = [];
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "DefiniciónProyecto",
+          hijos: {nombre:tokens[1], cuerpo, setup},
+          textoOriginal
+        });
+      }),
+      P([tt("Boom"),tg("COMANDO")],function(tokens, textoOriginal) {
+        let cuerpo = tokens[1].contenido();
+        return Mila.AST.nuevoNodo({
+          tipoNodo: "DefiniciónBoom",
+          hijos: {cuerpo},
           textoOriginal
         });
       }),
@@ -215,13 +232,22 @@ Mila.alIniciar(function() {
 });
 
 Simu.Parser.Parsear = function(códigoOriginal) {
+  Simu.Parser.datos = {};
   Simu.Parser.identificadoresOriginales = {}; // Borro cualquier data anterior
+
   const ast = Simu.Parser.parser.parsear(códigoOriginal);
   // TODO: ¡verificar si falló al parsear!
   const js = ast.transformados(function(n) {
     return Simu.Parser.nodoAJs(n);
   });
-  return js.snoc(`while(1){${datos.nombreProyecto}();}`).join("\n")
+  return js.snoc(`${Simu.Parser.datos.setup}\nwhile(1){${Simu.Parser.datos.nombreProyecto}();}`).join("\n")
+};
+
+Simu.Parser.Boom = function() {
+  return ('boom' in Simu.Parser.datos)
+    ? Simu.Parser.datos.boom
+    : Mila.Nada
+  ;
 };
 
 Simu.Parser.operaciónBinaria = function(nodo, hijos) {
@@ -260,8 +286,13 @@ Simu.Parser._cuerpoAJs = function(cuerpo) {
 
 Simu.Parser.dataNodoAJs = {
   DefiniciónProyecto: function(nodo, hijos) {
-    datos.nombreProyecto = hijos.nombre;
+    Simu.Parser.datos.nombreProyecto = hijos.nombre;
+    Simu.Parser.datos.setup = hijos.setup.join("\n");
     return `${s(nodo.nivel)}function ${hijos.nombre}() ${Simu.Parser._cuerpoAJs(hijos.cuerpo)}`;
+  },
+  DefiniciónBoom: function(nodo, hijos) {
+    Simu.Parser.datos.boom = hijos.cuerpo.join('\n');
+    return '';
   },
   DefiniciónProcedimiento: function(nodo, hijos) {
     return `${s(nodo.nivel)}function ${hijos.nombre}() ${Simu.Parser._cuerpoAJs(hijos.cuerpo)}`;

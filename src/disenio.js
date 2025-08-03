@@ -75,6 +75,27 @@ Simu.Diseño.DibujarModulos = function() {
   }
   líneas.push(Mila.Pantalla.nuevoPanel({disposicion:"Horizontal",alto:"Minimizar",elementos:módulos}));
   Simu.Diseño.panel.CambiarElementosA_(líneas);
+  Simu.Diseño.AgregarListenersDeslizadores();
+};
+
+Simu.Diseño.AgregarListenersDeslizadores = function() {
+  // TODO: esto lo pongo acá por ahora. Más adelante, que sea parte del código de inicialización de elementos de Pantalla
+    // (en la función Simu.Diseño.panelParaModulo_). Hay que modificar el deslizador para que tome una función que se ejecute al
+    // soltar.
+  for (let claveModulo in Simu.Diseño.componentes) {
+    if ('deslizador' in Simu.Diseño.componentes[claveModulo]) {
+      Simu.Diseño.componentes[claveModulo].deslizador._nodoHtml.addEventListener('input', function() {
+        let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
+        let unidad = {
+          'LDR':'%',
+          'ULTRASONIC':' cm'
+        }[Simu.Diseño.componentes[claveModulo].componente];
+        if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
+          Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor}${unidad}`);
+        }
+      });
+    }
+  }
 };
 
 Simu.Diseño.panelParaPin_ = function(pin) {
@@ -154,8 +175,8 @@ Simu.Diseño.panelParaModulo_ = function(claveModulo) {
       return modulo.panel;
     case "ULTRASONIC":
       ancho = 180;
-      modulo.etiqueta = Mila.Pantalla.nuevaEtiqueta({texto:'50 cm',ancho});
-      modulo.deslizador = Mila.Pantalla.nuevoDeslizador({ancho});
+      modulo.etiqueta = Mila.Pantalla.nuevaEtiqueta({texto:'80 cm',ancho});
+      modulo.deslizador = Mila.Pantalla.nuevoDeslizador({ancho, valor:80});
       return Mila.Pantalla.nuevoPanel({elementos:[
         Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("sonar.svg"),ancho}),
         modulo.etiqueta,
@@ -166,8 +187,8 @@ Simu.Diseño.panelParaModulo_ = function(claveModulo) {
       });
     case "LDR":
       ancho = 150;
-      modulo.etiqueta = Mila.Pantalla.nuevaEtiqueta({texto:'50 %',ancho});
-      modulo.deslizador = Mila.Pantalla.nuevoDeslizador();
+      modulo.etiqueta = Mila.Pantalla.nuevaEtiqueta({texto:'75 %',ancho});
+      modulo.deslizador = Mila.Pantalla.nuevoDeslizador({ancho, valor:75});
       return Mila.Pantalla.nuevoPanel({elementos:[
         Mila.Pantalla.nuevaImagen({ruta:Simu.rutaImagen("ldr.svg"),ancho}),
         modulo.etiqueta,
@@ -226,6 +247,15 @@ Simu.Diseño.CrearPanelParaMatrizLed = function(modulo) {
 };
 
 Simu.Diseño.Escribir = function(pin, valor) {
+  if (Number.isInteger(valor)) {
+    if (valor < 0) {
+      Simu.Diseño.BOOM("No se puede escribir un valor negativo en un pin pwm.");
+      return;
+    } else if (valor > 255) {
+      Simu.Diseño.BOOM("No se puede escribir un valor mayor a 255 en un pin pwm.");
+      return;
+    }
+  }
   if (Simu.Diseño.modo == "PINES") {
     Simu.Diseño.AsignarValorPin(pin, valor);
   } else if (Simu.Diseño.modo == "MODULOS") {
@@ -249,9 +279,6 @@ Simu.Diseño.distancia = function(echo, trigger) {
   let claveModulo = `ULTRASONIC_${echo}_${trigger}`;
   if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
     let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
-    if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor} cm`);
-    }
     return valor;
   }
   return 0;
@@ -261,9 +288,6 @@ Simu.Diseño.estáOscuro = function(pin) {
   let claveModulo = `LDR_${pin}`;
   if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
     let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
-    if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor} %`);
-    }
     return valor < 50;
   }
   return false;
@@ -273,9 +297,6 @@ Simu.Diseño.luminosidad = function(pin, intensidad) {
   let claveModulo = `LDR_${pin}`;
   if (claveModulo in Simu.Diseño.componentes && 'deslizador' in Simu.Diseño.componentes[claveModulo]) {
     let valor = Simu.Diseño.componentes[claveModulo].deslizador.valor();
-    if ('etiqueta' in Simu.Diseño.componentes[claveModulo]) {
-      Simu.Diseño.componentes[claveModulo].etiqueta.CambiarTextoA_(`${valor} %`);
-    }
     if (intensidad == 'PORCENTAJE') {
       return valor;
     }
@@ -283,6 +304,14 @@ Simu.Diseño.luminosidad = function(pin, intensidad) {
     return Math.round((100 - valor)*10.24);
   }
   return 0;
+};
+
+Simu.Diseño.Esperar = function(cantidadMilisegundos) {
+  if (cantidadMilisegundos < 0) {
+    Simu.Diseño.BOOM("No se puede esperar una cantidad negativa de tiempo.");
+  } else {
+    Simu.DetenerInterpretePor_Milisegundos(cantidadMilisegundos);
+  }
 };
 
 Simu.Diseño.Decir = function(mensaje) {
@@ -300,9 +329,42 @@ Simu.Diseño.Decir = function(mensaje) {
   }
 };
 
+Simu.Diseño.FinalizarEjecución = function() {
+  Simu.Finalizar();
+};
+
+Simu.Diseño.BOOM = function(msg) {
+  let boom = Simu.Parser.Boom();
+  if (boom.esAlgo()) {
+    Simu.Boom(boom);
+  } else {
+    Simu.PantallaBoom(msg);
+    Simu.Finalizar();
+  }
+};
+
 Simu.Diseño.SetLed = function(pin, valor, intensidad) {
+  if (intensidad == "PORCENTAJE") {
+    if (valor < 0) {
+      Simu.Diseño.BOOM("No se puede asignar un valor negativo como porcentaje de intensidad de un led.");
+      return;
+    } else if (valor > 100) {
+      Simu.Diseño.BOOM("No se puede asignar un valor mayor a 100 como porcentaje de intensidad de un led.");
+      return;
+    }
+  } else if (intensidad == "RAW") {
+    if (valor < 0) {
+      Simu.Diseño.BOOM("No se puede asignar un valor negativo como intensidad de un led.");
+      return;
+    } else if (valor > 255) {
+      Simu.Diseño.BOOM("No se puede asignar un valor mayor a 255 como intensidad de un led.");
+      return;
+    }
+  }
   if (Simu.Diseño.modo == "PINES") {
-    Simu.Diseño.AsignarValorPin(pin, valor);
+    Simu.Diseño.AsignarValorPin(pin,
+      (intensidad == "PORCENTAJE" ? Math.round(valor*2.55) : valor)
+    );
   } else if (Simu.Diseño.modo == "MODULOS") {
     let claveModulo = `LED_${pin}`;
     if (claveModulo in Simu.Diseño.componentes) {

@@ -181,7 +181,7 @@ Simu.Lenguaje.comandosPrimitivos = {
       return `Esperar(${cantidadMs});`;
     },
     exec:function(cantidadMilisegundos) {
-      Simu.DetenerInterpretePor_Milisegundos(cantidadMilisegundos);
+      Simu.Diseño.Esperar(cantidadMilisegundos);
     }
   },
   "Decir":{
@@ -194,6 +194,29 @@ Simu.Lenguaje.comandosPrimitivos = {
     }),
     exec:function(mensaje) {
       Simu.Diseño.Decir(mensaje);
+    }
+  },
+  "Boom":{
+    p:P([tt("Boom"),rec("EXPRESIÓN")],function(tokens, textoOriginal) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "Boom",
+        hijos: {mensaje:tokens[1]},
+        textoOriginal
+      });
+    }),
+    exec:function(mensaje) {
+      Simu.Diseño.BOOM(mensaje);
+    }
+  },
+  "Fin":{
+    p:P(tt("Fin"),function(tokens, textoOriginal) {
+      return Mila.AST.nuevoNodo({
+        tipoNodo: "Fin",
+        textoOriginal
+      });
+    }),
+    exec:function() {
+      Simu.Diseño.FinalizarEjecución();
     }
   }
 };
