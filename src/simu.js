@@ -211,5 +211,6 @@ Simu.EjecutarCódigo_ = function(código) {
 }
 
 Simu.rutaImagen = function(archivo) {
-  return `../src/img/${archivo}`;
+  // return `img/${archivo}`; // Local (desde src)
+  return `../src/img/${archivo}`; // Web (desde build)
 };
