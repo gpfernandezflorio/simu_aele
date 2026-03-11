@@ -96,12 +96,12 @@ Simu.Lenguaje.comandosPrimitivos = {
     aJs:function(nodo, hijos) {
       let pin = hijos.pin;
       let intensidad = nodo.intensidad();
-      let valor = hijos.defineLaClavePropia_('valor')
+      let valor = hijos.defineLaClave_('valor')
         ? hijos.valor
         : '"HIGH"'
       ;
       let código = `EncenderLed({pin:${pin},valor:${valor},intensidad:"${intensidad}"});`;
-      if (hijos.defineLaClavePropia_('cantidad')) {
+      if (hijos.defineLaClave_('cantidad')) {
         código += `\nEsperar(${Simu.Lenguaje.tiempoAJs(hijos.cantidad, nodo.unidad())});\nApagarLed(${pin});`;
       }
       return código;
