@@ -32,7 +32,7 @@ Simu.Diseño.Actualizar = function() {
   if (Simu.Diseño.modo == "PINES") {
     Simu.Diseño.DibujarPines();
   } else {
-    Simu.Diseño.DibujarModulos();
+    Simu.Diseño.DibujarMódulos();
   }
   Mila.Pantalla._Redimensionar();
 };
@@ -126,7 +126,20 @@ Simu.Diseño.DibujarPines = function() {
   Simu.Diseño.panel.CambiarElementosA_(pines);
 };
 
-Simu.Diseño.DibujarModulos = function() {
+Simu.Diseño.InicializarMódulos = function() {
+  Mila.Contrato({
+    Propósito: "Inicializar el estado de los componentes.",
+    Precondiciones: [
+      "El modo actual del simulador es MODULOS",
+      Simu.Diseño.modo == "MODULOS"
+    ]
+  });
+  Simu.Diseño.componentes.valoresContenidos().conCadaUno(componente => {
+    componente.componente = Simu.Componentes.nuevo(componente);
+  });
+};
+
+Simu.Diseño.DibujarMódulos = function() {
   Mila.Contrato({
     Propósito: "Dibujar el estado de los componentes en el panel de diseño.",
     Precondiciones: [
@@ -136,7 +149,6 @@ Simu.Diseño.DibujarModulos = function() {
   });
   const contenido = [];
   Simu.Diseño.componentes.valoresContenidos().conCadaUno(componente => {
-    componente.componente = Simu.Componentes.nuevo(componente);
     contenido.push({
       x:() => componente.componente.ubicación().x,
       y:() => componente.componente.ubicación().y,

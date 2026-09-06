@@ -141,6 +141,7 @@ Simu.IniciarConCódigo = function(código) {
   Simu.interprete = Simu.Interprete.nuevo(Simu.Lenguaje.mapaPrimitivas);
 
   Mila.Pantalla.nueva({elementos:[Simu.menuSuperior,Simu.escritorio]}, "Principal");
+  Simu.Diseño.InicializarMódulos();
   Simu.Diseño.Actualizar();
 
   // Pantalla Boom
